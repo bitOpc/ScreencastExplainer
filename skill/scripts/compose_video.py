@@ -20,6 +20,11 @@ def format_ass_filter(path: Path) -> str:
     return f"ass={path_str}"
 
 
+def build_ass_filter_graph(path: Path) -> str:
+    """构建 filter_complex：将视频流经 ass 滤镜烧录字幕后输出 [vout]。"""
+    return f"[0:v]{format_ass_filter(path)}[vout]"
+
+
 def build_mux_command(paths: RunPaths, *, crf: int = DEFAULT_CRF) -> list[str]:
     """构建 ffmpeg 合成命令参数列表（不含 ffmpeg 可执行文件路径）。"""
     paths.video_dir.mkdir(parents=True, exist_ok=True)
@@ -31,9 +36,9 @@ def build_mux_command(paths: RunPaths, *, crf: int = DEFAULT_CRF) -> list[str]:
         "-i",
         str(paths.narration_wav),
         "-filter_complex",
-        format_ass_filter(paths.captions_ass),
+        build_ass_filter_graph(paths.captions_ass),
         "-map",
-        "0:v:0",
+        "[vout]",
         "-map",
         "1:a:0",
         "-c:v",

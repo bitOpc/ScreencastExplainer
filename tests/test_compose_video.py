@@ -4,7 +4,12 @@ from unittest.mock import patch
 
 import pytest
 
-from compose_video import build_mux_command, compose_video, format_ass_filter
+from compose_video import (
+    build_ass_filter_graph,
+    build_mux_command,
+    compose_video,
+    format_ass_filter,
+)
 from lib.paths import RunPaths
 from lib.run_state import load_run, save_run
 
@@ -16,17 +21,16 @@ def test_build_mux_command(tmp_run_dir):
     paths.captions_ass.write_bytes(b"x")
 
     cmd = build_mux_command(paths, crf=18)
-    cmd_str = " ".join(cmd)
 
     assert "-filter_complex" in cmd
-    assert "ass=" in cmd_str
+    assert build_ass_filter_graph(paths.captions_ass) in cmd
+    assert "[vout]" in cmd
     assert str(paths.normalized_mp4) in cmd
     assert str(paths.narration_wav) in cmd
     assert str(paths.final_mp4) in cmd
     assert "-crf" in cmd
     assert cmd[cmd.index("-crf") + 1] == "18"
     assert "-map" in cmd
-    assert "0:v:0" in cmd
     assert "1:a:0" in cmd
 
 
