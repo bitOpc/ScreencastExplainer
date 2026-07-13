@@ -135,6 +135,46 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
+## 冒烟验证
+
+在不依赖真实桌面录屏的情况下，可用占位视频跑通完整 Python 流水线，验证旁白、字幕与合成步骤。
+
+**前置条件：** 已安装 Python 依赖（`requirements.txt`）、ffmpeg，且 `doctor.py` 全部检查通过。`build_narration.py` 需联网调用 Edge TTS。
+
+```bash
+source .venv/bin/activate   # 如使用虚拟环境
+RUN=outputs/smoke-$(date +%Y%m%d-%H%M%S)
+
+python3 skill/scripts/doctor.py
+python3 skill/scripts/init_run.py --output-dir "$RUN"
+
+# 写入 script.md 与 segments.json（draft，2 段中文旁白即可）
+# 示例 segments.json 见 skill/references/segment-schema.md
+
+python3 skill/scripts/build_narration.py --output-dir "$RUN"
+
+# 用黑屏占位视频替代真实录屏，时长与 narration.wav 对齐
+AUDIO_DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$RUN/narration.wav")
+ffmpeg -y -f lavfi -i color=c=black:s=1920x1080:d=$AUDIO_DUR -pix_fmt yuv420p "$RUN/capture/raw.mp4"
+
+python3 skill/scripts/ingest_capture.py --output-dir "$RUN"
+python3 skill/scripts/compose_video.py --output-dir "$RUN"
+```
+
+**预期结果：**
+
+- `$RUN/narration.wav`、`captions.srt`、`captions.ass` 已生成
+- `segments.json` 状态为 `narrated`
+- `$RUN/video/final.mp4` 存在且可播放（含硬字幕与旁白）
+
+**全量单元测试：**
+
+```bash
+pytest -v
+```
+
+Expected: 16 passed
+
 ## 卸载
 
 ```bash
