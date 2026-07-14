@@ -1,6 +1,15 @@
 # 安装路径
 
-Screencast Explainer 通过 `install.sh` 将仓库中的 `skill/` 目录以符号链接方式安装到各 Agent 平台的 skill 目录。
+Screencast Explainer 通过 `install.sh` 将仓库中的 `skill/` 目录以符号链接方式安装到 Agent 平台的 skill 目录。
+
+## Agent 安装 vs 手动安装
+
+| 场景 | 命令 | 安装范围 |
+|------|------|----------|
+| **Agent 一句话安装**（`docs/install.md`） | `./install.sh --platform <当前平台>` | **仅当前平台** |
+| 开发者本地 `./install.sh` | 无 `--platform` | 四平台全装 |
+
+Agent 必须先探测用户正在 Hermes / Codex / Claude Code / OpenClaw 哪一侧，再安装；Hermes 还需 `--hermes-profile <name>`（从 `HERMES_HOME` 或用户确认，勿默认 `ailearn`）。
 
 ## 四平台安装路径
 

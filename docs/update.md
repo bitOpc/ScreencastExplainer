@@ -12,9 +12,13 @@
 
 ### Goal
 
-将 `~/.screencast-explainer` 更新到最新代码，刷新 Python 依赖与 skill 符号链接。
+将 `~/.screencast-explainer` 更新到最新代码，刷新 Python 依赖，并**仅**刷新当前 Agent 平台的 skill 符号链接。
 
-### Steps
+### Step 1: 探测当前平台
+
+与 [install.md](install.md) Step 4a 相同：只更新用户正在用的平台（hermes / codex / claude / openclaw）。Hermes 需带上正确的 `--hermes-profile`。
+
+### Step 2: 拉代码并更新依赖
 
 ```bash
 cd ~/.screencast-explainer
@@ -22,11 +26,18 @@ git pull
 
 source ~/.screencast-explainer-venv/bin/activate
 pip install -r requirements.txt
+```
 
-./install.sh
+### Step 3: 仅重装当前平台链接
+
+```bash
+# 示例：Hermes profile video_engineer
+./install.sh --platform hermes --hermes-profile video_engineer
 
 python3 skill/scripts/doctor.py --json
 ```
+
+**禁止**在无用户明确要求时运行无 `--platform` 的 `./install.sh`。
 
 ### Notes
 

@@ -12,7 +12,7 @@
 帮我安装 Screencast Explainer：https://raw.githubusercontent.com/bitOpc/ScreencastExplainer/main/docs/install.md
 ```
 
-Agent 会按 [docs/install.md](docs/install.md) 克隆到 `~/.screencast-explainer`、创建 venv、运行 `./install.sh` 与 `doctor.py`。更新 skill 见 [docs/update.md](docs/update.md)。
+Agent 会按 [docs/install.md](docs/install.md) 克隆到 `~/.screencast-explainer`、创建 venv，并**只安装到你当前使用的 Agent 平台**（不会默认装四路）。更新 skill 见 [docs/update.md](docs/update.md)。
 
 ## 支持平台
 

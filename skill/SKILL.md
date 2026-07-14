@@ -62,13 +62,13 @@ triggers:
 
 ## 安装
 
-用户可通过一句话让 Agent 安装本 skill（仓库 push 到 GitHub 后替换用户名）：
+用户可通过一句话让 Agent 安装本 skill：
 
 ```
 帮我安装 Screencast Explainer：https://raw.githubusercontent.com/bitOpc/ScreencastExplainer/main/docs/install.md
 ```
 
-完整步骤见仓库 `docs/install.md`；本地已 clone 时也可直接读该文件。
+Agent 应**只装到当前会话所在平台**（见 `docs/install.md` Step 4），不要默认 `./install.sh` 装四路。完整步骤见仓库 `docs/install.md`；本地已 clone 时也可直接读该文件。
 
 ## 依赖约定
 

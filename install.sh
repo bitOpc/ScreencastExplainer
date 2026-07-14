@@ -36,7 +36,8 @@ usage() {
 将本仓库 skill/ 目录以符号链接方式安装到 Agent 平台。
 
 选项:
-  --platform <列表>         目标平台，逗号分隔：hermes,codex,claude,openclaw（默认全部）
+  --platform <列表>         目标平台，逗号分隔：hermes,codex,claude,openclaw
+                            （默认全部；Agent 安装时必须显式指定单个平台）
   --hermes-profile <名称>   Hermes profile 名称（默认: ailearn）
   --dry-run                 仅打印将要执行的操作，不实际修改文件系统
   --force                   目标已存在且非符号链接时，强制删除后重新安装
