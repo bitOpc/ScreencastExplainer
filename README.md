@@ -4,6 +4,16 @@
 
 详细设计见 [设计规格](docs/superpowers/specs/2026-07-13-screencast-explainer-design.md)。
 
+## 一句话安装（Agent Reach 风格）
+
+把下面这句话发给 Agent（将 `bitOpc` 换成你的 GitHub 用户名；需先 push 本仓库）：
+
+```
+帮我安装 Screencast Explainer：https://raw.githubusercontent.com/bitOpc/ScreencastExplainer/main/docs/install.md
+```
+
+Agent 会按 [docs/install.md](docs/install.md) 克隆到 `~/.screencast-explainer`、创建 venv、运行 `./install.sh` 与 `doctor.py`。更新 skill 见 [docs/update.md](docs/update.md)。
+
 ## 支持平台
 
 | 平台 | 安装路径 |
@@ -129,6 +139,9 @@ ScreencastExplainer/
 | [skill/references/failure-modes.md](skill/references/failure-modes.md) | 四类常见失败模式 |
 | [skill/references/segment-schema.md](skill/references/segment-schema.md) | `segments.json` 数据模型 |
 | [skill/references/install-paths.md](skill/references/install-paths.md) | 四平台安装路径 |
+| [skill/references/computer-use-token-policy.md](skill/references/computer-use-token-policy.md) | 省 token 策略（Agent 指引，非代码模式） |
+| [docs/install.md](docs/install.md) | Agent 一句话安装剧本 |
+| [docs/update.md](docs/update.md) | Agent 更新剧本 |
 | [设计规格](docs/superpowers/specs/2026-07-13-screencast-explainer-design.md) | 完整设计文档 |
 
 ## 测试

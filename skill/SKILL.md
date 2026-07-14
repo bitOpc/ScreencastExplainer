@@ -11,7 +11,7 @@ metadata:
     tags: [screencast, video, computer-use, narration, macos]
     category: media
   openclaw:
-    homepage: ""
+    homepage: "https://github.com/bitOpc/ScreencastExplainer"
 triggers:
   - 录屏讲解
   - 讲解视频
@@ -58,6 +58,17 @@ triggers:
 | [segment-schema.md](references/segment-schema.md) | `segments.json` 字段说明与示例 |
 | [install-paths.md](references/install-paths.md) | 四平台安装路径与 `install.sh` 用法 |
 | [recording-window.md](references/recording-window.md) | 单窗口后台录屏（`screencapture -v -l`） |
+| [computer-use-token-policy.md](references/computer-use-token-policy.md) | Computer Use 省 token 策略（精简/常态/浪费，**非代码开关**） |
+
+## 安装
+
+用户可通过一句话让 Agent 安装本 skill（仓库 push 到 GitHub 后替换用户名）：
+
+```
+帮我安装 Screencast Explainer：https://raw.githubusercontent.com/bitOpc/ScreencastExplainer/main/docs/install.md
+```
+
+完整步骤见仓库 `docs/install.md`；本地已 clone 时也可直接读该文件。
 
 ## 依赖约定
 
@@ -228,6 +239,8 @@ python3 <skill-root>/scripts/build_narration.py \
 记录实际使用的 `voice_provider`、`voice_id`、`voice_style`、`voice_rate`。
 
 ### 6. 校准页面推进策略（Computer Use，录屏前必做）
+
+**省 token：** 默认按 [computer-use-token-policy.md](references/computer-use-token-policy.md) 的「精简」策略执行——校准阶段少截图，录屏中不为看画面而 capture。精简/常态/浪费是 Agent 操作档位，**不是** CLI 或 Python 模式。
 
 必须先做小测试，再决定用哪种方式推进画面。
 
