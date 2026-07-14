@@ -57,6 +57,7 @@ triggers:
 | [failure-modes.md](references/failure-modes.md) | 四类常见失败模式与处理 |
 | [segment-schema.md](references/segment-schema.md) | `segments.json` 字段说明与示例 |
 | [install-paths.md](references/install-paths.md) | 四平台安装路径与 `install.sh` 用法 |
+| [recording-window.md](references/recording-window.md) | 单窗口后台录屏（`screencapture -v -l`） |
 
 ## 依赖约定
 
@@ -67,14 +68,15 @@ triggers:
 - `python3`
 - `ffmpeg`
 - `ffprobe`
+- `screencapture`（macOS 单窗口录屏）
 - `Edge TTS`（Python 包 `edge-tts`）
 - 可用中文字体（Pillow 探测）
 
 ### Agent 侧依赖（Agent 自行报告）
 
-- **Computer Use**：能否读取并操作目标 App
+- **Computer Use**：能否读取并操作目标 App（后台操作即可，不必始终置前）
 - **Target App**：能否打开到正确界面
-- **Screen Recording Permission**：macOS 屏幕录制权限
+- **Screen Recording Permission**：授予**运行 screencapture 的宿主**（终端 / Cursor / Hermes），用于单窗口录屏
 
 如果这些依赖不成立，Agent 可能「知道流程」，但实际无法执行。因此 **必须先做依赖检查，不允许跳过**。
 
@@ -111,7 +113,7 @@ Agent 额外输出：
 doctor → init_run
 → [Agent 写 script.md + segments.json]
 → build_narration
-→ [Agent: Computer Use 打开 App、校准滚动、实时录屏 → capture/raw.mp4]
+→ [Agent: 取得 window_id；record_window.py 单窗口录屏 + Computer Use 后台推进 UI → capture/raw.mp4]
 → ingest_capture → compose_video
 → 交付
 ```
@@ -243,16 +245,39 @@ python3 <skill-root>/scripts/build_narration.py \
 - 不要开始整段录屏
 - 立刻更换策略
 
-### 7. 实时录屏（唯一采集模式）
+### 7. 单窗口实时录屏（唯一采集模式）
 
-Agent 按 `segments.json` 时间轴同步录制屏幕 → `capture/raw.mp4`。
+**标准做法：** 用 `record_window.py`（底层 `screencapture -v -l <window_id>`）录制**单个应用窗口**的连续视频；同时用 Computer Use **后台**滚动/操作（不要为录屏抢前台）。
+
+详见 [recording-window.md](references/recording-window.md)。
+
+```bash
+# 先取得目标窗口 window_id（Computer Use / cua-driver list_windows）
+python3 <skill-root>/scripts/record_window.py \
+  --output-dir ./outputs/<run-id> \
+  --window-id <WINDOW_ID>
+```
+
+**并行操作：**
+
+1. `record_window.py` 按旁白时长启动录屏（写入 `capture/raw.mp4`）
+2. 录制进行中：Computer Use 按 `segments.json` 时间轴执行 `scroll` / `page_down` / `click` 等
+3. `raise_window` 默认 **false**；除非用户明确要求，不要把目标窗口提到前台
 
 **要求：**
 
+- 画面必须是目标 App **窗口内容**（不是整屏桌面）
 - 画面必须随旁白段落推进而滚动/翻页/切换
-- 录屏时长应与 `narration.wav` 大致一致
+- 录屏时长应与 `narration.wav` 大致一致（脚本会向上取整秒数）
+- 必须是连续视频，**禁止**截图拼凑
 
-**不支持连续采帧离线合成。** 实时录屏失败时，调整策略后重新录制，不得退化为帧序列合成。
+**不支持：**
+
+- 连续采帧离线合成
+- 以整屏录制 + crop 冒充单窗口（遮挡时会录错）
+- cua-driver `record_video`（主显示器）作为正式交付路径
+
+失败时调整 window_id / 权限 / 滚动策略后重新录制。
 
 ### 8. 合成
 
@@ -313,7 +338,8 @@ outputs/<run-id>/
 
 ## 禁止事项
 
-- 不得使用连续采帧离线合成替代实时录屏
+- 不得使用连续采帧 / 截图拼视频替代单窗口实时录屏
+- 不得使用整屏录制 + crop、或 cua-driver 整屏 `record_video` 作为正式成片来源
 - 不得使用 `verify_keyframes.py` 或类似抽帧验收脚本
 - 不得先录屏后写脚本
 - 不得交付黑底纯字幕视频

@@ -35,7 +35,7 @@ pip install -r requirements-dev.txt
 brew install ffmpeg
 ```
 
-还需：Python 3.10+、macOS 屏幕录制权限、Agent 侧 Computer Use 能力。
+还需：Python 3.10+、macOS `screencapture`（系统自带）、屏幕录制权限（授予运行 Agent/终端的宿主）、Agent 侧 Computer Use。
 
 ### 3. 安装 Skill
 
@@ -63,7 +63,7 @@ python3 skill/scripts/doctor.py --json
 | 4 | Agent + 脚本 | 写入 `segments.json`，运行 `init_run.py` |
 | 5 | 脚本 | `build_narration.py` 生成旁白与字幕 |
 | 6 | Agent | Computer Use 校准滚动/翻页策略 |
-| 7 | Agent | 实时录屏 → `capture/raw.mp4` |
+| 7 | 脚本 + Agent | `record_window.py` 单窗口录屏 + Computer Use 后台推进 UI |
 | 8 | 脚本 | `ingest_capture.py` → `compose_video.py` |
 | 9 | Agent | 交付成片、音频、字幕路径与时长 |
 
@@ -74,11 +74,14 @@ python3 skill/scripts/doctor.py --json
 python3 skill/scripts/init_run.py --output-dir "$RUN"
 # Agent 写入 $RUN/script.md 与 $RUN/segments.json
 python3 skill/scripts/build_narration.py --output-dir "$RUN"
-# Agent 实时录屏 → $RUN/capture/raw.mp4
+# Agent 取得 window_id 后：
+python3 skill/scripts/record_window.py --output-dir "$RUN" --window-id <WINDOW_ID>
+# 同时 Computer Use 按时间轴滚动（可不置前）
 python3 skill/scripts/ingest_capture.py --output-dir "$RUN"
 python3 skill/scripts/compose_video.py --output-dir "$RUN"
 ```
 
+单窗口录屏细节见 `skill/references/recording-window.md`。
 最终成片：`$RUN/video/final.mp4`
 
 ## 目录结构

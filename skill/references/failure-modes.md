@@ -14,18 +14,20 @@ Screencast Explainer 在端到端执行中可能遇到以下四类失败。Agent
 
 ### 原因
 
-- 录屏未捕获目标 App 窗口
-- 录屏权限未授予
-- 录屏过程中目标 App 未在前台
+- 录错了 `window_id`，或窗口已关闭
+- 未授予「屏幕录制」权限给运行 `screencapture` 的宿主进程
+- 未实际生成 `capture/raw.mp4`，或用了错误来源（整屏/黑屏）
 
 ### 处理
 
 **不可交付。** 必须：
 
-1. 确认 macOS 屏幕录制权限已授予
-2. 确认录屏时目标 App 在前台且窗口可见
-3. 重新执行步骤 7（实时录屏）
+1. 确认宿主（终端 / Cursor / Hermes）已获屏幕录制权限
+2. 用 `list_windows` 重新确认目标 `window_id`
+3. 用 `record_window.py` 重新执行步骤 7（单窗口录屏）
 4. 重跑 `ingest_capture.py` → `compose_video.py`
+
+说明：单窗口录屏**不要求**目标 App 始终在前台；后台录制是支持的。
 
 ---
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""依赖检查：ffmpeg、ffprobe、edge-tts、中文字体。"""
+"""依赖检查：ffmpeg、ffprobe、screencapture、edge-tts、中文字体。"""
 
 import argparse
 import importlib.util
@@ -44,6 +44,7 @@ def check_dependencies() -> dict[str, str]:
         "python3": "available",
         "ffmpeg": "available" if _available("ffmpeg") else "unavailable",
         "ffprobe": "available" if _available("ffprobe") else "unavailable",
+        "screencapture": "available" if _available("screencapture") else "unavailable",
         "edge_tts": "available" if edge else "unavailable",
         "cjk_font": "available" if _cjk_font_available() else "unavailable",
         "selected_voice": DEFAULT_VOICE_ID if edge else "unavailable",
@@ -61,7 +62,7 @@ def main() -> None:
     else:
         for key, value in result.items():
             print(f"{key}: {value}")
-    required = ["ffmpeg", "ffprobe", "edge_tts"]
+    required = ["ffmpeg", "ffprobe", "edge_tts", "screencapture"]
     if any(result[k] == "unavailable" for k in required):
         sys.exit(1)
 

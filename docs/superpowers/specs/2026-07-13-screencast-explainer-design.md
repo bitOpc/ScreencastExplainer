@@ -21,8 +21,25 @@ Build `ScreencastExplainer` as the canonical repository for a cross-platform Age
 | UI automation | Pure Computer Use — no bundled C/Swift input helpers |
 | Install | `install.sh` one-click to 4 platforms, `--platform` filter |
 | Output dir | `./outputs/<run-id>/`, overridable via `--output-dir` |
-| Capture mode | Live screen recording only (no frame-sequence fallback) |
+| Capture mode | Live **single-window** recording via `screencapture -v -l` (not full display; not frame collage) |
 | Verification | No `verify_keyframes.py` — deliver video directly |
+| Documentation language | 简体中文（文档与代码注释） |
+
+### 语言约定
+
+本仓库所有**文档**与**代码注释**统一使用**简体中文**：
+
+| 范围 | 语言 | 说明 |
+|------|------|------|
+| `README.md` | 中文 | 项目说明、快速开始 |
+| `skill/SKILL.md` | 中文 | Agent 工作流正文；frontmatter `description` 同为中文 |
+| `skill/references/*.md` | 中文 | 参考文档 |
+| `docs/` | 中文 | 设计 spec、实现计划等 |
+| Python / Shell 代码注释 | 中文 | 函数说明、非显而易见逻辑 |
+| CLI `--help` 与错误/提示信息 | 中文 | 面向用户的终端输出 |
+| 代码标识符 | 英文 | 文件名、变量名、函数名、JSON 字段名保持英文 |
+
+实现阶段不得混用英文文档或英文注释，除非引用外部 API / 工具原名（如 `ffmpeg`、`Edge TTS`）。
 
 ---
 
@@ -56,8 +73,8 @@ ScreencastExplainer/
 
 | Role | Does | Does NOT |
 |------|------|----------|
-| **Agent (Computer Use)** | Open app, scroll/page, live record screen → `capture/raw.mp4` | Timeline math, ffmpeg command construction |
-| **Python scripts** | Dep check, narration, subtitles, ingest, compose | Any UI click/scroll |
+| **Agent (Computer Use)** | Open app, scroll/page in background; obtain `window_id` | Timeline math, ffmpeg command construction |
+| **Python / record_window** | Single-window live capture via `screencapture -v -l` → `capture/raw.mp4`; narration; compose | UI click/scroll |
 | **SKILL.md** | Enforce workflow 0→9, failure modes, delivery format | Executable logic |
 
 ---
@@ -305,11 +322,11 @@ Test PageDown → scroll wheel → mixed → click/tab/panel switches.
 
 Re-check UI state after each test. Do not start full recording if UI did not advance.
 
-**Step 7 — Live screen recording (only capture mode)**
+**Step 7 — Single-window live recording (only capture mode)**
 
-Agent records screen synchronized to `segments.json` timeline → `capture/raw.mp4`.
+Use `record_window.py` (`screencapture -v -l <window_id>`) for continuous single-window video while Computer Use advances the UI in the background (`raise_window=false`).
 
-No frame-sequence fallback. On failure: adjust and re-record.
+No frame-sequence collage. No full-display `record_video` as the deliverable. On failure: fix window_id/permissions/scroll, then re-record.
 
 **Step 8 — Compose**
 
@@ -405,7 +422,7 @@ Pillow>=10.0.0
 | 2 | `doctor.py` + `init_run.py` |
 | 3 | `build_narration.py` |
 | 4 | `ingest_capture.py` + `compose_video.py` |
-| 5 | `SKILL.md` + reference docs |
+| 5 | `SKILL.md` + reference docs（全文中文） |
 | 6 | End-to-end manual validation |
 
 ---
