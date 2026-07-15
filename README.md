@@ -1,91 +1,93 @@
 # Screencast Explainer
 
-跨平台 Agent Skill，用于生成**真实桌面应用录屏讲解视频**（旁白 + 硬字幕），而非黑底纯字幕视频。
+**English** | [简体中文](README.zh-CN.md)
 
-详细设计见 [设计规格](docs/superpowers/specs/2026-07-13-screencast-explainer-design.md)。
+Cross-platform Agent skill for producing **real desktop app screencast explainer videos** (narration + burned-in subtitles), not black-background subtitle-only videos.
 
-## 一句话安装（Agent Reach 风格）
+See the [design spec](docs/superpowers/specs/2026-07-13-screencast-explainer-design.md) for full details.
 
-把下面这句话发给 Agent（将 `bitOpc` 换成你的 GitHub 用户名；需先 push 本仓库）：
+## One-line install (Agent Reach style)
+
+Send this to your Agent:
 
 ```
-帮我安装 Screencast Explainer：https://raw.githubusercontent.com/bitOpc/ScreencastExplainer/main/docs/install.md
+Install Screencast Explainer: https://raw.githubusercontent.com/bitOpc/ScreencastExplainer/main/docs/install.md
 ```
 
-Agent 会按 [docs/install.md](docs/install.md) 克隆到 `~/.screencast-explainer`、创建 venv，并**只安装到你当前使用的 Agent 平台**（不会默认装四路）。更新 skill 见 [docs/update.md](docs/update.md)。
+The Agent follows [docs/install.md](docs/install.md) to clone into `~/.screencast-explainer`, create a venv, and install the skill **only on the current Agent platform** (not all four by default). To update, see [docs/update.md](docs/update.md).
 
-## 支持平台
+## Supported platforms
 
-| 平台 | 安装路径 |
-|------|----------|
+| Platform | Install path |
+|----------|--------------|
 | Hermes | `~/.hermes/profiles/ailearn/skills/screencast-explainer/` |
 | Codex | `~/.codex/skills/screencast-explainer/` |
 | Claude Code | `~/.claude/skills/screencast-explainer/` |
 | OpenClaw | `~/.agents/skills/screencast-explainer/` |
 
-## 快速开始
+## Quick start
 
-### 1. 克隆与依赖
+### 1. Clone and dependencies
 
 ```bash
-git clone <repo-url> ScreencastExplainer
+git clone https://github.com/bitOpc/ScreencastExplainer.git
 cd ScreencastExplainer
 
-# Python 依赖（运行时）
+# Runtime Python deps
 pip install -r requirements.txt
 
-# 开发依赖（含 pytest，可选）
+# Dev deps (pytest, optional)
 pip install -r requirements-dev.txt
 ```
 
-### 2. 系统依赖
+### 2. System dependencies
 
 ```bash
-# macOS 推荐
+# macOS recommended
 brew install ffmpeg
 ```
 
-还需：Python 3.10+、macOS `screencapture`（系统自带）、屏幕录制权限（授予运行 Agent/终端的宿主）、Agent 侧 Computer Use。
+You also need: Python 3.10+, macOS `screencapture` (built-in), Screen Recording permission for the Agent/terminal host, and Agent-side Computer Use.
 
-### 3. 安装 Skill
+### 3. Install the skill
 
 ```bash
-./install.sh                  # 安装到全部平台
-./install.sh --platform codex # 或仅安装到指定平台
-./install.sh --dry-run        # 预览安装操作
+./install.sh                  # all platforms
+./install.sh --platform codex # or a single platform
+./install.sh --dry-run        # preview only
 ```
 
-### 4. 验证环境
+### 4. Verify environment
 
 ```bash
 python3 skill/scripts/doctor.py
 python3 skill/scripts/doctor.py --json
 ```
 
-### 5. 端到端工作流（Agent 执行）
+### 5. End-to-end workflow (Agent-driven)
 
-| 步骤 | 执行者 | 动作 |
-|------|--------|------|
-| 0 | Agent + 脚本 | `doctor.py` 依赖检查 |
-| 1 | Agent | 理解用户输入（目标 App、时长、声音等） |
-| 2 | Agent | Computer Use 打开目标界面 |
-| 3 | Agent | 撰写 `script.md` |
-| 4 | Agent + 脚本 | 写入 `segments.json`，运行 `init_run.py` |
-| 5 | 脚本 | `build_narration.py` 生成旁白与字幕 |
-| 6 | Agent | Computer Use 校准 UI 动作，写入 `actions.json` |
-| 7 | 脚本 | `run_recording.py` 单窗口录屏 + cua-driver 本地时间轴回放 |
-| 8 | 脚本 | `ingest_capture.py` → `compose_video.py` |
-| 9 | Agent | 交付成片、音频、字幕路径与时长 |
+| Step | Who | Action |
+|------|-----|--------|
+| 0 | Agent + script | `doctor.py` dependency check |
+| 1 | Agent | Parse user input (target app, duration, voice, etc.) |
+| 2 | Agent | Computer Use opens the target UI |
+| 3 | Agent | Write `script.md` |
+| 4 | Agent + script | Write `segments.json`, run `init_run.py` |
+| 5 | Script | `build_narration.py` generates narration and captions |
+| 6 | Agent | Computer Use calibrates UI actions, writes `actions.json` |
+| 7 | Script | `run_recording.py` single-window capture + cua-driver local timeline playback |
+| 8 | Script | `ingest_capture.py` → `compose_video.py` |
+| 9 | Agent | Deliver final video, audio, captions, and duration |
 
 ```bash
 RUN=outputs/my-run-$(date +%Y%m%d-%H%M%S)
 
 python3 skill/scripts/doctor.py --json
 python3 skill/scripts/init_run.py --output-dir "$RUN"
-# Agent 写入 $RUN/script.md、$RUN/segments.json 与 $RUN/actions.json
+# Agent writes $RUN/script.md, $RUN/segments.json, and $RUN/actions.json
 python3 skill/scripts/build_narration.py --output-dir "$RUN"
 
-# Agent 取得 window_id 后：
+# After Agent obtains window_id:
 python3 skill/scripts/timeline_player.py --actions "$RUN/actions.json" --output-dir "$RUN" --dry-run
 python3 skill/scripts/run_recording.py --output-dir "$RUN" --window-id <WINDOW_ID>
 
@@ -93,16 +95,17 @@ python3 skill/scripts/ingest_capture.py --output-dir "$RUN"
 python3 skill/scripts/compose_video.py --output-dir "$RUN"
 ```
 
-单窗口录屏细节见 `skill/references/recording-window.md`，通用动作时间轴见 `skill/references/action-timeline.md`。
-最终成片：`$RUN/video/final.mp4`
+Single-window recording: `skill/references/recording-window.md`. Action timeline: `skill/references/action-timeline.md`.
 
-## 目录结构
+Final output: `$RUN/video/final.mp4`
+
+## Directory layout
 
 ```
 ScreencastExplainer/
-├── skill/                      # Skill 主体（install.sh 会创建符号链接）
-│   ├── SKILL.md                # Agent 强制工作流（中文）
-│   ├── references/             # 参考文档（中文）
+├── skill/                      # Skill root (symlinked by install.sh)
+│   ├── SKILL.md                # Agent workflow (Chinese)
+│   ├── references/             # Reference docs (Chinese)
 │   │   ├── standard-pipeline.md
 │   │   ├── voice-presets.md
 │   │   ├── failure-modes.md
@@ -122,7 +125,7 @@ ScreencastExplainer/
 ├── requirements-dev.txt
 ├── tests/
 ├── docs/
-└── outputs/                    # 运行输出（已 gitignore）
+└── outputs/                    # Run output (gitignored)
     └── <run-id>/
         ├── run.json
         ├── script.md
@@ -136,48 +139,48 @@ ScreencastExplainer/
         └── video/final.mp4
 ```
 
-## 文档
+## Documentation
 
-| 文档 | 说明 |
-|------|------|
-| [skill/SKILL.md](skill/SKILL.md) | Agent 强制工作流（步骤 0–9） |
-| [skill/references/standard-pipeline.md](skill/references/standard-pipeline.md) | Computer Use + Python + ffmpeg 架构 |
-| [skill/references/voice-presets.md](skill/references/voice-presets.md) | 默认声音与可配置字段 |
-| [skill/references/failure-modes.md](skill/references/failure-modes.md) | 四类常见失败模式 |
-| [skill/references/segment-schema.md](skill/references/segment-schema.md) | `segments.json` 数据模型 |
-| [skill/references/action-timeline.md](skill/references/action-timeline.md) | `actions.json` 通用 UI 动作时间轴 |
-| [skill/references/install-paths.md](skill/references/install-paths.md) | 四平台安装路径 |
-| [skill/references/computer-use-token-policy.md](skill/references/computer-use-token-policy.md) | 省 token 策略（Agent 指引，非代码模式） |
-| [docs/install.md](docs/install.md) | Agent 一句话安装剧本 |
-| [docs/update.md](docs/update.md) | Agent 更新剧本 |
-| [设计规格](docs/superpowers/specs/2026-07-13-screencast-explainer-design.md) | 完整设计文档 |
+| Document | Description |
+|----------|-------------|
+| [skill/SKILL.md](skill/SKILL.md) | Agent workflow (steps 0–9) |
+| [skill/references/standard-pipeline.md](skill/references/standard-pipeline.md) | Computer Use + Python + ffmpeg architecture |
+| [skill/references/voice-presets.md](skill/references/voice-presets.md) | Default voice and configurable fields |
+| [skill/references/failure-modes.md](skill/references/failure-modes.md) | Four common failure modes |
+| [skill/references/segment-schema.md](skill/references/segment-schema.md) | `segments.json` data model |
+| [skill/references/action-timeline.md](skill/references/action-timeline.md) | `actions.json` generic UI action timeline |
+| [skill/references/install-paths.md](skill/references/install-paths.md) | Four-platform install paths |
+| [skill/references/computer-use-token-policy.md](skill/references/computer-use-token-policy.md) | Token-saving strategy (Agent guidance) |
+| [docs/install.md](docs/install.md) | Agent one-line install playbook |
+| [docs/update.md](docs/update.md) | Agent update playbook |
+| [Design spec](docs/superpowers/specs/2026-07-13-screencast-explainer-design.md) | Full design document |
 
-## 测试
+## Tests
 
 ```bash
 pip install -r requirements-dev.txt
 pytest
 ```
 
-## 冒烟验证
+## Smoke test
 
-在不依赖真实桌面录屏的情况下，可用占位视频跑通完整 Python 流水线，验证旁白、字幕与合成步骤。
+Run the full Python pipeline with a placeholder video (no real desktop capture) to verify narration, captions, and composition.
 
-**前置条件：** 已安装 Python 依赖（`requirements.txt`）、ffmpeg，且 `doctor.py` 全部检查通过。`build_narration.py` 需联网调用 Edge TTS。
+**Prerequisites:** Python deps (`requirements.txt`), ffmpeg, and `doctor.py` all passing. `build_narration.py` needs network access for Edge TTS.
 
 ```bash
-source .venv/bin/activate   # 如使用虚拟环境
+source .venv/bin/activate   # if using a venv
 RUN=outputs/smoke-$(date +%Y%m%d-%H%M%S)
 
 python3 skill/scripts/doctor.py
 python3 skill/scripts/init_run.py --output-dir "$RUN"
 
-# 写入 script.md 与 segments.json（draft，2 段中文旁白即可）
-# 示例 segments.json 见 skill/references/segment-schema.md
+# Write script.md and segments.json (draft, 2 short narration segments)
+# See skill/references/segment-schema.md for an example
 
 python3 skill/scripts/build_narration.py --output-dir "$RUN"
 
-# 用黑屏占位视频替代真实录屏，时长与 narration.wav 对齐
+# Black placeholder video aligned with narration.wav duration
 AUDIO_DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$RUN/narration.wav")
 ffmpeg -y -f lavfi -i color=c=black:s=1920x1080:d=$AUDIO_DUR -pix_fmt yuv420p "$RUN/capture/raw.mp4"
 
@@ -185,21 +188,21 @@ python3 skill/scripts/ingest_capture.py --output-dir "$RUN"
 python3 skill/scripts/compose_video.py --output-dir "$RUN"
 ```
 
-**预期结果：**
+**Expected:**
 
-- `$RUN/narration.wav`、`captions.srt`、`captions.ass` 已生成
-- `segments.json` 状态为 `narrated`
-- `$RUN/video/final.mp4` 存在且可播放（含硬字幕与旁白）
+- `$RUN/narration.wav`, `captions.srt`, `captions.ass` exist
+- `segments.json` status is `narrated`
+- `$RUN/video/final.mp4` plays with burned-in subtitles and narration
 
-**全量单元测试：**
+**Full unit tests:**
 
 ```bash
 pytest -v
 ```
 
-Expected: 16 passed
+Expected: 32 passed
 
-## 卸载
+## Uninstall
 
 ```bash
 ./install.sh --uninstall
