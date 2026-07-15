@@ -56,6 +56,7 @@ triggers:
 | [voice-presets.md](references/voice-presets.md) | 默认声音与可配置字段 |
 | [failure-modes.md](references/failure-modes.md) | 四类常见失败模式与处理 |
 | [segment-schema.md](references/segment-schema.md) | `segments.json` 字段说明与示例 |
+| [action-timeline.md](references/action-timeline.md) | `actions.json` 通用 UI 动作时间轴 |
 | [install-paths.md](references/install-paths.md) | 四平台安装路径与 `install.sh` 用法 |
 | [recording-window.md](references/recording-window.md) | 单窗口后台录屏（`screencapture -v -l`） |
 | [computer-use-token-policy.md](references/computer-use-token-policy.md) | Computer Use 省 token 策略（精简/常态/浪费，**非代码开关**） |
@@ -124,7 +125,8 @@ Agent 额外输出：
 doctor → init_run
 → [Agent 写 script.md + segments.json]
 → build_narration
-→ [Agent: 取得 window_id；record_window.py 单窗口录屏 + Computer Use 后台推进 UI → capture/raw.mp4]
+→ [Agent: 校准 UI 动作并写 actions.json]
+→ [run_recording.py: record_window.py 单窗口录屏 + timeline_player.py 直连 cua-driver 回放 UI → capture/raw.mp4]
 → ingest_capture → compose_video
 → 交付
 ```
@@ -207,7 +209,7 @@ Agent 额外报告：
 - `text`
 - `expected_duration`
 - `page_target`
-- `scroll_action`
+- `scroll_action`（兼容字段；正式回放以 `actions.json` 为准）
 - `ui_target`（推荐）
 
 然后初始化运行目录：
@@ -238,51 +240,61 @@ python3 <skill-root>/scripts/build_narration.py \
 
 记录实际使用的 `voice_provider`、`voice_id`、`voice_style`、`voice_rate`。
 
-### 6. 校准页面推进策略（Computer Use，录屏前必做）
+### 6. 校准 UI 动作并写入 `actions.json`（Computer Use，录屏前必做）
 
 **省 token：** 默认按 [computer-use-token-policy.md](references/computer-use-token-policy.md) 的「精简」策略执行——校准阶段少截图，录屏中不为看画面而 capture。精简/常态/浪费是 Agent 操作档位，**不是** CLI 或 Python 模式。
 
-必须先做小测试，再决定用哪种方式推进画面。
+必须先做小测试，再把成功动作写入 `./outputs/<run-id>/actions.json`。字段见 [action-timeline.md](references/action-timeline.md)。
 
-依次测试：
+优先级：
 
-1. `PageDown`
-2. 滚轮事件
-3. 混合方案
-4. 必要时使用点击、切标签、切面板、切页签、切视图
+1. `key` / `hotkey`：PPT、PDF、翻页、快捷键场景优先
+2. `scroll`：文档、网页、列表
+3. `click` / `double_click` / `right_click`：按钮、标签页、链接、项目打开
+4. `drag` / `type_text`：仅在任务需要时使用
 
-每次测试后都要重新获取目标 App 状态，检查画面是否真的推进。
+校准阶段允许少量 `computer_use`：先 `capture(mode="som")` 理解界面，后续优先 `mode="ax"` 或轻量状态检查。**正式录制阶段不再逐步调用 LLM `computer_use` 工具**，而由 `timeline_player.py` 直连 cua-driver 回放。
 
 **如果画面未推进：**
 
 - 不要开始整段录屏
 - 立刻更换策略
+- 更新 `actions.json` 后先执行 dry-run：
 
-### 7. 单窗口实时录屏（唯一采集模式）
+```bash
+python3 <skill-root>/scripts/timeline_player.py \
+  --actions ./outputs/<run-id>/actions.json \
+  --output-dir ./outputs/<run-id> \
+  --dry-run
+```
 
-**标准做法：** 用 `record_window.py`（底层 `screencapture -v -l <window_id>`）录制**单个应用窗口**的连续视频；同时用 Computer Use **后台**滚动/操作（不要为录屏抢前台）。
+### 7. 单窗口实时录屏 + 本地动作时间轴回放（唯一采集模式）
+
+**标准做法：** 用 `run_recording.py` 同时启动：
+
+1. `record_window.py`（底层 `screencapture -v -l <window_id>`）录制**单个应用窗口**的连续视频
+2. `timeline_player.py` 按 `actions.json` 直连 cua-driver 执行后台 UI 动作
 
 详见 [recording-window.md](references/recording-window.md)。
 
 ```bash
 # 先取得目标窗口 window_id（Computer Use / cua-driver list_windows）
-python3 <skill-root>/scripts/record_window.py \
+python3 <skill-root>/scripts/run_recording.py \
   --output-dir ./outputs/<run-id> \
   --window-id <WINDOW_ID>
 ```
 
-**并行操作：**
-
-1. `record_window.py` 按旁白时长启动录屏（写入 `capture/raw.mp4`）
-2. 录制进行中：Computer Use 按 `segments.json` 时间轴执行 `scroll` / `page_down` / `click` 等
-3. `raise_window` 默认 **false**；除非用户明确要求，不要把目标窗口提到前台
-
 **要求：**
 
+- 录屏中禁止为了推进画面而逐步调用 LLM `computer_use`
+- `actions.json` 的动作默认 `delivery_mode=background`
+- `foreground` 只允许作为明确兜底，并需传 `--allow-foreground`
 - 画面必须是目标 App **窗口内容**（不是整屏桌面）
-- 画面必须随旁白段落推进而滚动/翻页/切换
+- 画面必须随旁白段落推进而滚动/翻页/点击/切换
 - 录屏时长应与 `narration.wav` 大致一致（脚本会向上取整秒数）
 - 必须是连续视频，**禁止**截图拼凑
+
+`run_recording.py` 会写入 `actions.report.json`，用于交付时说明回放动作是否执行。
 
 **不支持：**
 
@@ -313,6 +325,8 @@ python3 <skill-root>/scripts/compose_video.py \
 最终回答中应包含：
 
 - 脚本路径（`script.md`）
+- 动作时间轴路径（`actions.json`）
+- 动作回放报告（`actions.report.json`）
 - 音频路径（`narration.wav`）
 - 字幕路径（`captions.srt` / `captions.ass`）
 - 成片路径（`video/final.mp4`）
@@ -339,6 +353,8 @@ outputs/<run-id>/
 ├── run.json
 ├── script.md
 ├── segments.json
+├── actions.json
+├── actions.report.json
 ├── narration.wav
 ├── captions.srt
 ├── captions.ass

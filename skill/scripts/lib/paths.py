@@ -17,6 +17,14 @@ class RunPaths:
         return self.root / "segments.json"
 
     @property
+    def actions_json(self) -> Path:
+        return self.root / "actions.json"
+
+    @property
+    def actions_report_json(self) -> Path:
+        return self.root / "actions.report.json"
+
+    @property
     def script_md(self) -> Path:
         return self.root / "script.md"
 

@@ -72,8 +72,8 @@ python3 skill/scripts/doctor.py --json
 | 3 | Agent | 撰写 `script.md` |
 | 4 | Agent + 脚本 | 写入 `segments.json`，运行 `init_run.py` |
 | 5 | 脚本 | `build_narration.py` 生成旁白与字幕 |
-| 6 | Agent | Computer Use 校准滚动/翻页策略 |
-| 7 | 脚本 + Agent | `record_window.py` 单窗口录屏 + Computer Use 后台推进 UI |
+| 6 | Agent | Computer Use 校准 UI 动作，写入 `actions.json` |
+| 7 | 脚本 | `run_recording.py` 单窗口录屏 + cua-driver 本地时间轴回放 |
 | 8 | 脚本 | `ingest_capture.py` → `compose_video.py` |
 | 9 | Agent | 交付成片、音频、字幕路径与时长 |
 
@@ -82,16 +82,18 @@ RUN=outputs/my-run-$(date +%Y%m%d-%H%M%S)
 
 python3 skill/scripts/doctor.py --json
 python3 skill/scripts/init_run.py --output-dir "$RUN"
-# Agent 写入 $RUN/script.md 与 $RUN/segments.json
+# Agent 写入 $RUN/script.md、$RUN/segments.json 与 $RUN/actions.json
 python3 skill/scripts/build_narration.py --output-dir "$RUN"
+
 # Agent 取得 window_id 后：
-python3 skill/scripts/record_window.py --output-dir "$RUN" --window-id <WINDOW_ID>
-# 同时 Computer Use 按时间轴滚动（可不置前）
+python3 skill/scripts/timeline_player.py --actions "$RUN/actions.json" --output-dir "$RUN" --dry-run
+python3 skill/scripts/run_recording.py --output-dir "$RUN" --window-id <WINDOW_ID>
+
 python3 skill/scripts/ingest_capture.py --output-dir "$RUN"
 python3 skill/scripts/compose_video.py --output-dir "$RUN"
 ```
 
-单窗口录屏细节见 `skill/references/recording-window.md`。
+单窗口录屏细节见 `skill/references/recording-window.md`，通用动作时间轴见 `skill/references/action-timeline.md`。
 最终成片：`$RUN/video/final.mp4`
 
 ## 目录结构
@@ -105,11 +107,14 @@ ScreencastExplainer/
 │   │   ├── voice-presets.md
 │   │   ├── failure-modes.md
 │   │   ├── segment-schema.md
+│   │   ├── action-timeline.md
 │   │   └── install-paths.md
 │   └── scripts/
 │       ├── doctor.py
 │       ├── init_run.py
 │       ├── build_narration.py
+│       ├── timeline_player.py
+│       ├── run_recording.py
 │       ├── ingest_capture.py
 │       └── compose_video.py
 ├── install.sh
@@ -122,6 +127,8 @@ ScreencastExplainer/
         ├── run.json
         ├── script.md
         ├── segments.json
+        ├── actions.json
+        ├── actions.report.json
         ├── narration.wav
         ├── captions.srt
         ├── captions.ass
@@ -138,6 +145,7 @@ ScreencastExplainer/
 | [skill/references/voice-presets.md](skill/references/voice-presets.md) | 默认声音与可配置字段 |
 | [skill/references/failure-modes.md](skill/references/failure-modes.md) | 四类常见失败模式 |
 | [skill/references/segment-schema.md](skill/references/segment-schema.md) | `segments.json` 数据模型 |
+| [skill/references/action-timeline.md](skill/references/action-timeline.md) | `actions.json` 通用 UI 动作时间轴 |
 | [skill/references/install-paths.md](skill/references/install-paths.md) | 四平台安装路径 |
 | [skill/references/computer-use-token-policy.md](skill/references/computer-use-token-policy.md) | 省 token 策略（Agent 指引，非代码模式） |
 | [docs/install.md](docs/install.md) | Agent 一句话安装剧本 |

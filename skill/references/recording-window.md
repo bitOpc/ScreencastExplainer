@@ -1,6 +1,6 @@
 # 单窗口后台录屏
 
-本技能对桌面 App 讲解视频的**标准采集方式**：用 macOS 自带 `screencapture` 对 **单个 window_id** 做连续视频录制（真录屏，不是截图拼凑），并与 Computer Use / cua-driver **后台操作**并行。
+本技能对桌面 App 讲解视频的**标准采集方式**：用 macOS 自带 `screencapture` 对 **单个 window_id** 做连续视频录制（真录屏，不是截图拼凑），并与 `timeline_player.py` 直连 cua-driver 的 **后台动作回放**并行。
 
 ## 为什么不用 cua-driver 的 record_video
 
@@ -15,7 +15,8 @@
 
 | 组件 | 职责 |
 |------|------|
-| Computer Use / cua-driver | 打开内容、校准滚动、按时间轴推进 UI（`raise_window=false`） |
+| Computer Use / cua-driver | 录屏前打开内容、校准动作、生成 `actions.json` |
+| `timeline_player.py` → cua-driver | 录屏中按 `actions.json` 后台推进 UI（默认 `delivery_mode=background`） |
 | `record_window.py` → `screencapture` | 按 window_id 录制真实连续视频 → `capture/raw.mp4` |
 | `ingest_capture.py` / `compose_video.py` | 时长校验、旁白与硬字幕合成 |
 
@@ -39,16 +40,16 @@ DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$RUN/narration
 # 3. 获取目标窗口 ID（Computer Use / cua-driver list_windows）
 #    记下 window_id，例如 4261
 
-# 4. 开始单窗口录屏（可在后台进行；不必把目标 App 置前）
-python3 <skill-root>/scripts/record_window.py \
+# 4. Agent 写入 actions.json 后，先 dry-run
+python3 <skill-root>/scripts/timeline_player.py \
+  --actions "$RUN/actions.json" \
+  --output-dir "$RUN" \
+  --dry-run
+
+# 5. 开始单窗口录屏 + 本地动作时间轴回放（不必把目标 App 置前）
+python3 <skill-root>/scripts/run_recording.py \
   --output-dir "$RUN" \
   --window-id 4261
-# 等价显式写法：
-# python3 <skill-root>/scripts/record_window.py \
-#   --window-id 4261 --duration "$DUR" --output "$RUN/capture/raw.mp4"
-
-# 5. 录制进行的同时：Computer Use 按 segments.json 滚动/翻页
-#    禁止 raise_window=true（除非用户明确要求把窗口提到前台）
 
 # 6. screencapture 按 -V 秒数结束后，继续 ingest → compose
 python3 <skill-root>/scripts/ingest_capture.py --output-dir "$RUN"
@@ -69,11 +70,12 @@ python3 <skill-root>/scripts/compose_video.py --output-dir "$RUN"
 ## Agent 执行注意
 
 1. **先写脚本与旁白，再录屏。**
-2. 录屏前完成滚动策略校准（步骤 6）。
+2. 录屏前完成动作校准并写入 `actions.json`（步骤 6）。
 3. 录屏时保持 `window_id` 有效（窗口不要关掉）。
 4. 窗口可以在背后录；**不要**为了录屏而抢用户前台。
-5. 禁止用连续截图拼视频冒充本步骤。
-6. 失败时检查：屏幕录制权限、window_id、旁白时长是否与 `-V` 设定一致。
+5. 正式录屏期间禁止逐步调用 LLM `computer_use` 推进画面。
+6. 禁止用连续截图拼视频冒充本步骤。
+7. 失败时检查：屏幕录制权限、window_id、旁白时长是否与 `-V` 设定一致，以及 `actions.report.json` 是否显示动作成功。
 
 ## 与失败模式的关系
 
