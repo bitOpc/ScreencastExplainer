@@ -6,7 +6,7 @@
 
 详细设计见 [设计规格](docs/superpowers/specs/2026-07-13-screencast-explainer-design.md)。
 
-## 一句话安装（Agent Reach 风格）
+## 一句话安装
 
 把下面这句话发给 Agent（将 `bitOpc` 换成你的 GitHub 用户名；需先 push 本仓库）：
 

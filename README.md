@@ -6,7 +6,7 @@ Cross-platform Agent skill for producing **real desktop app screencast explainer
 
 See the [design spec](docs/superpowers/specs/2026-07-13-screencast-explainer-design.md) for full details.
 
-## One-line install (Agent Reach style)
+## One-line install
 
 Send this to your Agent:
 
