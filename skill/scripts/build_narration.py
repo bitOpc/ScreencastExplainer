@@ -17,6 +17,7 @@ from lib.timefmt import parse_srt_time, srt_time
 DEFAULT_VOICE_ID = "zh-CN-YunxiNeural"
 DEFAULT_VOICE_RATE = "-3%"
 DEFAULT_GAP = 0.45
+SAMPLE_RATE = 44100
 
 
 async def synthesize_clip(text: str, output: Path, voice: str, rate: str) -> None:
@@ -41,7 +42,7 @@ def _mp3_to_wav(mp3: Path, wav: Path) -> None:
             "-i",
             str(mp3),
             "-ar",
-            "44100",
+            str(SAMPLE_RATE),
             "-ac",
             "1",
             str(wav),
@@ -49,30 +50,28 @@ def _mp3_to_wav(mp3: Path, wav: Path) -> None:
     )
 
 
-def _pad_clip_to_slot(wav: Path, padded: Path, slot_duration: float) -> None:
-    """将 WAV 拉伸或填充到指定时长，便于拼接。"""
-    clip_duration = wav_duration(wav)
-    if clip_duration > slot_duration:
-        audio_filter = f"atempo={clip_duration / slot_duration:.6f}"
-    else:
-        audio_filter = (
-            f"apad=whole_dur={slot_duration:.3f},atrim=0:{slot_duration:.3f}"
-        )
-    run_ffmpeg(
-        [
-            "-hide_banner",
-            "-y",
-            "-i",
-            str(wav),
-            "-af",
-            audio_filter,
-            "-ar",
-            "44100",
-            "-ac",
-            "1",
-            str(padded),
-        ]
-    )
+def write_silence_wav(path: Path, duration: float, *, sample_rate: int = SAMPLE_RATE) -> None:
+    """写入指定时长的单声道静音 WAV（与旁白采样率一致）。"""
+    if duration <= 0:
+        raise ValueError("silence duration 必须为正数")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    frames = int(round(duration * sample_rate))
+    with wave.open(str(path), "wb") as audio:
+        audio.setnchannels(1)
+        audio.setsampwidth(2)
+        audio.setframerate(sample_rate)
+        audio.writeframes(b"\x00\x00" * frames)
+
+
+def build_concat_list(clip_paths: list[Path], silence_path: Path) -> list[Path]:
+    """在旁白片段之间插入静音，使拼接时长与字幕时间轴一致。"""
+    if not clip_paths:
+        return []
+    entries: list[Path] = [clip_paths[0]]
+    for clip in clip_paths[1:]:
+        entries.append(silence_path)
+        entries.append(clip)
+    return entries
 
 
 def concat_audio(paths: RunPaths, clip_paths: list[Path], output: Path) -> None:
@@ -93,7 +92,7 @@ def concat_audio(paths: RunPaths, clip_paths: list[Path], output: Path) -> None:
             "-i",
             str(list_path),
             "-ar",
-            "44100",
+            str(SAMPLE_RATE),
             "-ac",
             "1",
             str(output),
@@ -110,6 +109,9 @@ async def build_narration(
 ) -> list[dict]:
     """为 draft 状态的分段合成配音、生成字幕并更新运行状态。
 
+    旁白与字幕一律以 TTS 实际时长为准；`expected_duration` 仅作规划参考，
+    不得用 atempo 加速或截断来凑预估时长。段间插入 `gap` 秒静音。
+
     返回字幕时间轴列表（start/end 为秒）。
     """
     data = load_segments(paths)
@@ -118,26 +120,21 @@ async def build_narration(
 
     paths.ensure_dirs()
     clips_dir = paths.work_audio_dir / "edge_clips"
-    padded_dir = paths.work_audio_dir / "edge_padded"
     clips_dir.mkdir(parents=True, exist_ok=True)
-    padded_dir.mkdir(parents=True, exist_ok=True)
 
     segments = data["segments"]
-    padded_paths: list[Path] = []
+    clip_paths: list[Path] = []
     timings: list[dict] = []
     cursor = 0.0
 
     for index, segment in enumerate(segments, start=1):
-        slot_duration = max(float(segment["expected_duration"]), 0.1)
         mp3 = clips_dir / f"clip_{index:03d}.mp3"
         wav = clips_dir / f"clip_{index:03d}.wav"
-        padded = padded_dir / f"padded_{index:03d}.wav"
 
         await synthesize_clip(segment["text"], mp3, voice_id, voice_rate)
         _mp3_to_wav(mp3, wav)
         actual_duration = wav_duration(wav)
-        _pad_clip_to_slot(wav, padded, slot_duration)
-        padded_paths.append(padded)
+        clip_paths.append(wav)
 
         segment["start"] = srt_time(cursor)
         segment["actual_duration"] = actual_duration
@@ -153,7 +150,14 @@ async def build_narration(
             }
         )
 
-    concat_audio(paths, padded_paths, paths.narration_wav)
+    silence_path = paths.work_audio_dir / "silence_gap.wav"
+    if gap > 0 and len(clip_paths) > 1:
+        write_silence_wav(silence_path, gap)
+        concat_entries = build_concat_list(clip_paths, silence_path)
+    else:
+        concat_entries = list(clip_paths)
+
+    concat_audio(paths, concat_entries, paths.narration_wav)
     write_subtitles(timings, paths.captions_srt, paths.captions_ass)
 
     data["status"] = "narrated"
