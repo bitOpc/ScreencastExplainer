@@ -4,8 +4,6 @@
 
 跨平台 Agent Skill，用于生成**真实桌面应用录屏讲解视频**（旁白 + 硬字幕），而非黑底纯字幕视频。
 
-详细设计见 [设计规格](docs/superpowers/specs/2026-07-13-screencast-explainer-design.md)。
-
 ## 一句话安装
 
 把下面这句话发给 Agent（将 `bitOpc` 换成你的 GitHub 用户名；需先 push 本仓库）：
@@ -152,7 +150,6 @@ ScreencastExplainer/
 | [skill/references/computer-use-token-policy.md](skill/references/computer-use-token-policy.md) | 省 token 策略（Agent 指引，非代码模式） |
 | [docs/install.md](docs/install.md) | Agent 一句话安装剧本 |
 | [docs/update.md](docs/update.md) | Agent 更新剧本 |
-| [设计规格](docs/superpowers/specs/2026-07-13-screencast-explainer-design.md) | 完整设计文档 |
 
 ## 测试
 

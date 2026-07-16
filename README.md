@@ -4,8 +4,6 @@
 
 Cross-platform Agent skill for producing **real desktop app screencast explainer videos** (narration + burned-in subtitles), not black-background subtitle-only videos.
 
-See the [design spec](docs/superpowers/specs/2026-07-13-screencast-explainer-design.md) for full details.
-
 ## One-line install
 
 Send this to your Agent:
@@ -153,7 +151,6 @@ ScreencastExplainer/
 | [skill/references/computer-use-token-policy.md](skill/references/computer-use-token-policy.md) | Token-saving strategy (Agent guidance) |
 | [docs/install.md](docs/install.md) | Agent one-line install playbook |
 | [docs/update.md](docs/update.md) | Agent update playbook |
-| [Design spec](docs/superpowers/specs/2026-07-13-screencast-explainer-design.md) | Full design document |
 
 ## Tests
 
