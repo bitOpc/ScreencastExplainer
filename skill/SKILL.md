@@ -92,6 +92,27 @@ Agent 应**只装到当前会话所在平台**（见 `docs/install.md` Step 4）
 
 如果这些依赖不成立，Agent 可能「知道流程」，但实际无法执行。因此 **必须先做依赖检查，不允许跳过**。
 
+## 输出目录约定（强制）
+
+**所有运行产物必须写在当前 session 的工作目录下**，不要使用 skill 安装目录：
+
+| 用途 | 正确 | 错误 |
+|------|------|------|
+| 运行目录 | `<session-cwd>/outputs/<run-id>/` | `~/.screencast-explainer/outputs/` |
+| 脚本路径 | `<skill-root>/scripts/...` | 在 `outputs/` 下自写 `build_*.py` |
+
+规则：
+
+1. 任务开始时确认 **session 工作目录**（`pwd`）；所有 `--output-dir` 使用 `$PWD/outputs/<run-id>` 或 `./outputs/<run-id>`。
+2. **禁止**把 `~/.screencast-explainer/`、`~/.hermes/`、`<skill-root>/` 当作运行输出根目录（那是源码与 skill 安装位置）。
+3. 若用户未指定项目目录，使用当前 session 的 `cwd`；不要自行切换到 skill 仓库。
+
+```bash
+RUN_ID="<topic>-$(date +%Y%m%d-%H%M%S)"
+RUN="$PWD/outputs/$RUN_ID"
+mkdir -p "$RUN"
+```
+
 运行依赖检查：
 
 ```bash
@@ -106,16 +127,25 @@ Agent 额外输出：
 
 任一不可用 → **中止任务并说明原因**。
 
-## 推荐声音配置
+## 声音配置（强制）
 
 详见 [voice-presets.md](references/voice-presets.md)。
 
-默认配置（Edge TTS 可用且用户未指定时）：
+默认配置：
 
 - `voice_provider = Edge TTS`
 - `voice_id = zh-CN-YunxiNeural`
 - `voice_style = 中文自然男声`
 - `voice_rate = -3%`
+
+**硬规则（违反即错误）：**
+
+1. 用户未明确要求换声时，必须使用默认 `zh-CN-YunxiNeural`；`init_run` / `build_narration` 可不传 `--voice-id`，或只传该默认值。
+2. **禁止**根据角色名、自我介绍、脚本人设推断音色。「艾达」「助手」等名字 ≠ 女声要求。
+3. 用户说「用 skill 默认 / 默认声音」= 强制 `zh-CN-YunxiNeural`，不得覆盖。
+4. **仅当**用户明确说「女声 / Xiaoxiao / 换某个 voice_id」时才改 `voice_id`。
+5. 步骤 0 或步骤 4 后回显一行（不打断、不 clarify）：`Selected Voice: Edge TTS / zh-CN-YunxiNeural / -3%（默认男声）`。
+6. `run.json` 的 `voice_style` 必须与实际 `voice_id` 一致。
 
 ## 标准流水线概览
 
@@ -146,7 +176,7 @@ Agent 额外报告：
 - `Screen Recording Permission`: granted / denied
 - `Selected Voice`: 当前将使用的声音
 
-如果 `Edge TTS` 可用且用户没有指定声音，默认选 `zh-CN-YunxiNeural` @ `-3%`。
+如果 `Edge TTS` 可用且用户没有指定声音（或说「用默认」），强制选 `zh-CN-YunxiNeural` @ `-3%`，并回显 `Selected Voice`。不得因「艾达」等人设改女声。
 
 **任一关键依赖不可用 → 中止并说明。**
 
@@ -212,24 +242,34 @@ Agent 额外报告：
 - `scroll_action`（兼容字段；正式回放以 `actions.json` 为准）
 - `ui_target`（推荐）
 
-然后初始化运行目录：
+然后初始化运行目录（`RUN` 为当前 session 工作目录下的路径，见上文「输出目录约定」）：
 
 ```bash
 python3 <skill-root>/scripts/init_run.py \
-  --output-dir ./outputs/<run-id> \
+  --output-dir "$RUN" \
   [--voice-id zh-CN-YunxiNeural] \
   [--voice-rate -3%]
 ```
 
 ### 5. 生成音频与字幕
 
+**必须且只能**使用官方脚本 `build_narration.py` 生成 `narration.wav`、`captions.srt`、`captions.ass`：
+
 ```bash
 python3 <skill-root>/scripts/build_narration.py \
-  --output-dir ./outputs/<run-id> \
+  --output-dir "$RUN" \
   [--voice-id zh-CN-YunxiNeural] \
   [--voice-rate -3%] \
   [--gap 0.45]
 ```
+
+**禁止：**
+
+- 在 `outputs/` 下自写 `build_narration_*.py`、`build_narration_say.py` 等替代脚本
+- 手写或改写 `captions.ass` 的 Style 行（字体、字号由 `lib/subtitles.py` 统一生成：`STHeiti` 42px）
+- Edge TTS 失败时擅自降级到 `say` 而不告知用户；应先重试或请用户处理网络，再决定是否中止
+
+若 `build_narration.py` 报错，修复环境后重跑同一脚本，**不要**换一套自制流水线。
 
 输出：
 
@@ -246,7 +286,15 @@ python3 <skill-root>/scripts/build_narration.py \
 
 **省 token：** 默认按 [computer-use-token-policy.md](references/computer-use-token-policy.md) 的「精简」策略执行——校准阶段少截图，录屏中不为看画面而 capture。精简/常态/浪费是 Agent 操作档位，**不是** CLI 或 Python 模式。
 
-必须先做小测试，再把成功动作写入 `./outputs/<run-id>/actions.json`。字段见 [action-timeline.md](references/action-timeline.md)。
+必须先做小测试，再把成功动作写入 `$RUN/actions.json`。字段见 [action-timeline.md](references/action-timeline.md)。
+
+**录屏前必须确认画面在文档/内容顶部：**
+
+1. `actions.json` 第一个事件应为 `{"at": 0.0, "action": "key", "key": "Home"}`（或 Obsidian 等场景用已验证可回到顶部的快捷键）
+2. 在 Obsidian 阅读视图中，`Home` 可能无效；校准阶段必须**目视确认**已回到顶部，必要时改用 `scroll` 小步上滚或 `cmd+up` 等已验证动作
+3. 第一段旁白对应的内容必须在首屏可见；不要在前 30–60 秒安排 `scroll_action: none` 却讲解需要往下看的内容
+
+按键名使用 cua-driver 认可的写法：`Home`、`PageDown`、`End`（首字母大写，与历史成功任务一致）。
 
 优先级：
 
@@ -335,6 +383,16 @@ python3 <skill-root>/scripts/compose_video.py \
 - 时长
 - 实际使用声音
 
+**成片链接格式（Hermes 媒体播放）：** `MEDIA:` 必须单独占一行，使用绝对路径，**不要**包在 markdown 粗体、反引号或链接语法里：
+
+```
+成片：video/final.mp4
+
+MEDIA:/absolute/path/to/outputs/<run-id>/video/final.mp4
+```
+
+错误示例（会导致链接乱码）：`` **`MEDIA:...`** ``、`[File: final.mp4](...)`
+
 **不做自动化关键帧抽帧验收。** 交付前 Agent 应目视确认画面随讲解推进（参见 [failure-modes.md](references/failure-modes.md)）。
 
 ## 常见失败模式
@@ -374,3 +432,7 @@ outputs/<run-id>/
 - 不得使用 `verify_keyframes.py` 或类似抽帧验收脚本
 - 不得先录屏后写脚本
 - 不得交付黑底纯字幕视频
+- 不得把运行产物写入 `~/.screencast-explainer/outputs/` 或 skill 安装目录
+- 不得自写旁白/字幕生成脚本或手写 `captions.ass` 样式
+- 不得用 markdown 格式包裹 `MEDIA:` 交付行
+- 不得根据「艾达」等角色名推断女声；未明确要求换声时不得覆盖默认 `zh-CN-YunxiNeural`

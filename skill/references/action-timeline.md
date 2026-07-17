@@ -73,6 +73,8 @@
 |--------|------|------|
 | `wait` | `seconds`（可选） | 显式停顿；通常直接靠下一个 `at` |
 | `key` | `key` | PPT 下一页、PageDown、方向键、Enter、Esc |
+
+推荐按键名（cua-driver）：`Home`、`PageDown`、`End`、`Up`、`Down`（首字母大写）。避免随意使用小写别名（如 `home`、`pagedown`），校准后写入 `actions.json` 前须目视验证效果。
 | `hotkey` | `keys` | `cmd+l`、`cmd+s` 等组合键 |
 | `click` | `position` / `element_index` / `element_token` | 点击按钮、链接、页签 |
 | `double_click` | 同 `click` | 打开项目、进入详情 |

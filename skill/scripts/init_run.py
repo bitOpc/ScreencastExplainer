@@ -11,6 +11,18 @@ from lib.run_state import save_run
 DEFAULT_VOICE_ID = "zh-CN-YunxiNeural"
 DEFAULT_VOICE_RATE = "-3%"
 
+VOICE_STYLES: dict[str, str] = {
+    "zh-CN-YunxiNeural": "中文自然男声",
+    "zh-CN-XiaoxiaoNeural": "中文自然女声",
+    "zh-CN-YunyangNeural": "中文新闻播报男声",
+    "zh-CN-XiaoyiNeural": "中文活泼女声",
+}
+
+
+def voice_style_for(voice_id: str) -> str:
+    """按 voice_id 返回可读风格标签；未知 ID 回退为该 ID 本身。"""
+    return VOICE_STYLES.get(voice_id, voice_id)
+
 
 def init_run(
     paths: RunPaths,
@@ -30,7 +42,7 @@ def init_run(
             "voice_provider": "Edge TTS",
             "voice_id": voice_id,
             "voice_rate": voice_rate,
-            "voice_style": "中文自然男声",
+            "voice_style": voice_style_for(voice_id),
             "target_description": target_description,
         },
     )

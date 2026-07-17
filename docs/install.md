@@ -41,8 +41,10 @@
 |------|------|------|
 | 源码与 skill | `~/.screencast-explainer/` | `~/.screencast-explainer/skill/SKILL.md` |
 | Python 虚拟环境 | `~/.screencast-explainer-venv/` | `~/.screencast-explainer-venv/bin/python3` |
-| 运行产物 | 用户项目下的 `./outputs/` | `./outputs/my-run-20260714/` |
+| 运行产物 | **当前 session 工作目录**下的 `./outputs/` | `~/Documents/AiVideo/outputs/my-run-20260714/` |
 | Skill 符号链接 | 各 Agent 平台目录 | 见 [install-paths.md](../skill/references/install-paths.md) |
+
+> **重要：** `--output-dir` 始终相对于用户任务的工作目录（`pwd`），**不是** `~/.screencast-explainer/`。Skill 仓库只放脚本，不放成片。
 
 ### Step 1: 克隆仓库
 
