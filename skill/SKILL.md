@@ -385,10 +385,14 @@ python3 <skill-root>/scripts/ingest_capture.py \
 python3 <skill-root>/scripts/compose_video.py \
   --output-dir ./outputs/<run-id> \
   [--crf 18]
+
+python3 <skill-root>/scripts/build_cover.py \
+  --output-dir ./outputs/<run-id>
 ```
 
 - `ingest_capture.py`：校验 `capture/raw.mp4` 与 `narration.wav` 时长（容差 ±0.5s），标准化为 `video/normalized.mp4`
 - `compose_video.py`：混合旁白 + 硬字幕 → `video/final.mp4`
+- `build_cover.py`：从成片帧 + 运行元数据生成 `video/cover.png`（暗色遮罩 + 中英文标题，风格参考 YouTube 封面）
 
 若 `ingest_capture.py` 报告音视频时长不匹配 → 见 [failure-modes.md](references/failure-modes.md) 模式 4。
 
@@ -402,6 +406,7 @@ python3 <skill-root>/scripts/compose_video.py \
 - 音频路径（`narration.wav`）
 - 字幕路径（`captions.srt` / `captions.ass`）
 - 成片路径（`video/final.mp4`）
+- 封面路径（`video/cover.png`）
 - 时长
 - 实际使用声音
 
@@ -444,7 +449,9 @@ outputs/<run-id>/
 │   └── raw.mp4
 └── video/
     ├── normalized.mp4
-    └── final.mp4
+    ├── final.mp4
+    ├── cover.png
+    └── cover.report.json
 ```
 
 ## 禁止事项

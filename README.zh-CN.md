@@ -4,6 +4,20 @@
 
 跨平台 Agent Skill，用于生成**真实桌面应用录屏讲解视频**（旁白 + 硬字幕），而非黑底纯字幕视频。
 
+## 效果演示
+
+本 skill 产出的真实 Obsidian 录屏讲解（Transformer + Attention，约 10 分钟）。
+
+**封面**（`build_cover.py` 自动生成）：
+
+![演示封面 — Attention / 机制深度解析](docs/assets/demo-cover.png)
+
+**片段预览**（来自合成成片 `Transformer.mp4`：含硬字幕、旁白音频，以及 Attention 段的 PageDown 滚动；GitHub README 内可直接播放）：
+
+<video src="docs/assets/demo-preview.mp4" controls width="720"></video>
+
+完整版（约 10 分钟）：**[YouTube 观看](https://youtu.be/Es6ZjRlRd_Q)** — 点击跳转到 YouTube；GitHub 无法在 README 内嵌外部 YouTube 播放器。
+
 ## 一句话安装
 
 把下面这句话发给 Agent（将 `bitOpc` 换成你的 GitHub 用户名；需先 push 本仓库）：
@@ -74,8 +88,8 @@ python3 skill/scripts/doctor.py --json
 | 5 | 脚本 | `build_narration.py` 生成旁白与字幕 |
 | 6 | Agent | Computer Use 校准 UI 动作，写入 `actions.json` |
 | 7 | 脚本 | `run_recording.py` 单窗口录屏 + cua-driver 本地时间轴回放 |
-| 8 | 脚本 | `ingest_capture.py` → `compose_video.py` |
-| 9 | Agent | 交付成片、音频、字幕路径与时长 |
+| 8 | 脚本 | `ingest_capture.py` → `compose_video.py` → `build_cover.py` |
+| 9 | Agent | 交付成片、封面、音频、字幕路径与时长 |
 
 ```bash
 RUN=outputs/my-run-$(date +%Y%m%d-%H%M%S)
@@ -91,10 +105,11 @@ python3 skill/scripts/run_recording.py --output-dir "$RUN" --window-id <WINDOW_I
 
 python3 skill/scripts/ingest_capture.py --output-dir "$RUN"
 python3 skill/scripts/compose_video.py --output-dir "$RUN"
+python3 skill/scripts/build_cover.py --output-dir "$RUN"
 ```
 
 单窗口录屏细节见 `skill/references/recording-window.md`，通用动作时间轴见 `skill/references/action-timeline.md`。
-最终成片：`$RUN/video/final.mp4`
+最终产物：`$RUN/video/final.mp4`、`$RUN/video/cover.png`
 
 ## 目录结构
 
@@ -116,7 +131,8 @@ ScreencastExplainer/
 │       ├── timeline_player.py
 │       ├── run_recording.py
 │       ├── ingest_capture.py
-│       └── compose_video.py
+│       ├── compose_video.py
+│       └── build_cover.py
 ├── install.sh
 ├── requirements.txt
 ├── requirements-dev.txt
@@ -133,7 +149,10 @@ ScreencastExplainer/
         ├── captions.srt
         ├── captions.ass
         ├── capture/raw.mp4
-        └── video/final.mp4
+        └── video/
+            ├── normalized.mp4
+            ├── final.mp4
+            └── cover.png
 ```
 
 ## 文档
@@ -196,7 +215,7 @@ python3 skill/scripts/compose_video.py --output-dir "$RUN"
 pytest -v
 ```
 
-Expected: 32 passed
+Expected: 49 passed
 
 ## 卸载
 
