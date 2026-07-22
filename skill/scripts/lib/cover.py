@@ -375,7 +375,7 @@ def render_cover_image(
         index=SUBTITLE_FONT_INDEX,
     )
 
-    gap = 8
+    gap = 28
     _, subtitle_h = _text_size(draw, subtitle, subtitle_font)
     _, title_h = _text_size(draw, title, title_font)
     block_h = title_h + gap + subtitle_h

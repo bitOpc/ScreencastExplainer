@@ -8,15 +8,11 @@
 
 本 skill 产出的真实 Obsidian 录屏讲解（Transformer + Attention，约 10 分钟）。
 
-**封面**（`build_cover.py` 自动生成）：
+**片段预览**（24 秒：硬字幕 + 旁白 + Attention 段 PageDown 滚动）：
 
-![演示封面 — Attention / 机制深度解析](docs/assets/demo-cover.png)
+<video src="https://github.com/bitOpc/ScreencastExplainer/releases/download/demo-assets/demo-preview.mp4" controls width="720"></video>
 
-**片段预览**（来自合成成片 `Transformer.mp4`：含硬字幕、旁白音频，以及 Attention 段的 PageDown 滚动；GitHub README 内可直接播放）：
-
-<video src="docs/assets/demo-preview.mp4" controls width="720"></video>
-
-完整版（约 10 分钟）：**[YouTube 观看](https://youtu.be/Es6ZjRlRd_Q)** — 点击跳转到 YouTube；GitHub 无法在 README 内嵌外部 YouTube 播放器。
+完整版（约 10 分钟）：**[YouTube 观看](https://youtu.be/Es6ZjRlRd_Q)**
 
 ## 一句话安装
 
