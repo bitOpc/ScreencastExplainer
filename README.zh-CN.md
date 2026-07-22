@@ -6,13 +6,11 @@
 
 ## 效果演示
 
-本 skill 产出的真实 Obsidian 录屏讲解（Transformer + Attention，约 10 分钟）。
+真实 Obsidian 录屏讲解（Transformer + Attention）。GIF 展示硬字幕与滚动效果；完整旁白见 YouTube。
 
-**片段预览**（24 秒：硬字幕 + 旁白 + Attention 段 PageDown 滚动）：
+[![演示预览](.github/assets/demo.gif)](https://youtu.be/Es6ZjRlRd_Q)
 
-<video src="https://github.com/bitOpc/ScreencastExplainer/releases/download/demo-assets/demo-preview.mp4" controls width="720"></video>
-
-完整版（约 10 分钟）：**[YouTube 观看](https://youtu.be/Es6ZjRlRd_Q)**
+**完整版（约 10 分钟）：** [YouTube 观看](https://youtu.be/Es6ZjRlRd_Q)
 
 ## 一句话安装
 
