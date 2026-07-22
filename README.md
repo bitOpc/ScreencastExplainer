@@ -10,7 +10,7 @@ Real Obsidian screencast explainer produced by this skill (Transformer + Attenti
 
 **Preview** (24s clip: burned-in subtitles, narration audio, PageDown scroll during the Attention section):
 
-<video src="https://github.com/bitOpc/ScreencastExplainer/releases/download/demo-assets/demo-preview.mp4" controls width="720"></video>
+<video src="https://youtu.be/Es6ZjRlRd_Q" controls width="720"></video>
 
 Full version (~10 min): **[Watch on YouTube](https://youtu.be/Es6ZjRlRd_Q)**
 
