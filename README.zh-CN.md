@@ -6,9 +6,13 @@
 
 ## 效果演示
 
-真实 Obsidian 录屏讲解（Transformer + Attention）。GIF 展示硬字幕与滚动效果；完整旁白见 YouTube。
+真实 Obsidian 录屏讲解（Transformer + Attention）。GIF 展示硬字幕与滚动；完整旁白见 YouTube。
 
-[![演示预览](docs/assets/demo.gif)](https://youtu.be/Es6ZjRlRd_Q)
+<p align="center">
+  <a href="https://youtu.be/Es6ZjRlRd_Q">
+    <img src="https://raw.githubusercontent.com/bitOpc/ScreencastExplainer/main/docs/assets/demo.gif" alt="演示预览 — Obsidian 录屏讲解（硬字幕与滚动）" width="720" />
+  </a>
+</p>
 
 **完整版（约 10 分钟）：** [YouTube 观看](https://youtu.be/Es6ZjRlRd_Q)
 
