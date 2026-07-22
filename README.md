@@ -8,7 +8,7 @@ Cross-platform Agent skill for producing **real desktop app screencast explainer
 
 Real Obsidian screencast explainer (Obsidian · Transformer + Attention). GIF preview shows burned-in subtitles and scroll; full video has narration on YouTube.
 
-[![Demo preview](.github/assets/demo.gif)](https://youtu.be/Es6ZjRlRd_Q)
+[![Demo preview](docs/assets/demo.gif)](https://youtu.be/Es6ZjRlRd_Q)
 
 **Full version (~10 min):** [Watch on YouTube](https://youtu.be/Es6ZjRlRd_Q)
 

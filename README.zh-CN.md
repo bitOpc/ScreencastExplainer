@@ -8,7 +8,7 @@
 
 真实 Obsidian 录屏讲解（Transformer + Attention）。GIF 展示硬字幕与滚动效果；完整旁白见 YouTube。
 
-[![演示预览](.github/assets/demo.gif)](https://youtu.be/Es6ZjRlRd_Q)
+[![演示预览](docs/assets/demo.gif)](https://youtu.be/Es6ZjRlRd_Q)
 
 **完整版（约 10 分钟）：** [YouTube 观看](https://youtu.be/Es6ZjRlRd_Q)
 
