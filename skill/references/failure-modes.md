@@ -96,8 +96,8 @@ Screencast Explainer 在端到端执行中可能遇到以下四类失败。Agent
 
 **方案 A（推荐）：重新录屏**
 
-1. 确认 `narration.wav` 时长（`ffprobe`）
-2. 按旁白时长重新录屏，确保起止同步
+1. 确认 `narration.wav` 时长（`ffprobe` 或查看 `capture/recording.report.json`）
+2. 重跑官方命令 `run_recording.py --output-dir ... --window-id ...`（**不要**传 `--duration`；**不要**自写录屏脚本）
 3. 重跑 `ingest_capture.py` → `compose_video.py`
 
 **方案 B：调整旁白**

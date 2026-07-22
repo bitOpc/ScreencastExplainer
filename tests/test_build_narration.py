@@ -23,11 +23,12 @@ async def test_build_narration_updates_segments(tmp_run_dir, sample_segments_dra
         with patch("build_narration.run_ffmpeg"):
             with patch("build_narration.write_silence_wav"):
                 with patch("build_narration.wav_duration", return_value=3.0):
-                    timings = await build_narration(
+                    timings, cues = await build_narration(
                         paths, voice_id="zh-CN-YunxiNeural", voice_rate="-3%", gap=0.45
                     )
 
     assert len(timings) == 2
+    assert len(cues) >= 2
     data = load_segments(paths)
     assert data["status"] == "narrated"
     assert "start" in data["segments"][0]

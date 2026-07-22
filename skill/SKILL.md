@@ -274,9 +274,22 @@ python3 <skill-root>/scripts/build_narration.py \
 输出：
 
 - `narration.wav`（TTS 实际时长拼接，段间含 `gap` 静音；**不会**为凑 `expected_duration` 而加速）
-- `captions.srt`
-- `captions.ass`
+- `captions.srt` / `captions.ass`（**单行硬字幕**：每个 `segments.json` 段落会按字数比例拆成多条短时序字幕，**同屏只显示一行**）
 - 更新后的 `segments.json`（`status: narrated`，含 `start` / `end` / `actual_duration`）
+
+**字幕硬规则：**
+
+1. 硬字幕**同屏最多 1 行**；禁止整段旁白一次性烧录成一条长字幕。
+2. 拆分由 `lib/subtitles.py` 自动完成：`segments.json` 仍按段落写旁白，字幕文件会展开为多条单行 cue。
+3. 已有 narrated 产物只需重生成字幕时：
+
+```bash
+python3 <skill-root>/scripts/build_narration.py \
+  --output-dir "$RUN" \
+  --captions-only
+```
+
+然后重跑 `compose_video.py` 即可，无需重录。
 
 记录实际使用的 `voice_provider`、`voice_id`、`voice_style`、`voice_rate`。
 
@@ -329,10 +342,19 @@ python3 <skill-root>/scripts/timeline_player.py \
 
 ```bash
 # 先取得目标窗口 window_id（Computer Use / cua-driver list_windows）
+export PATH="$HOME/.local/bin:$PATH"
 python3 <skill-root>/scripts/run_recording.py \
   --output-dir ./outputs/<run-id> \
   --window-id <WINDOW_ID>
 ```
+
+**录屏硬规则（违反即错误）：**
+
+1. **只允许**上述一条官方命令启动录屏；**禁止**在 `outputs/` 下自写 `record_*.py`、`capture_movie.py` 等替代脚本。
+2. **禁止**给 `run_recording.py` 传 `--duration`（该参数仅存在于底层 `record_window.py`；编排脚本会从 `narration.wav` 自动推断时长）。
+3. 使用 **terminal 一次阻塞等待**（timeout ≥ 900s），等命令自然结束；**禁止** `cmd &`、**禁止** `process` 工具轮询录屏状态。
+4. 录屏结束后检查 `capture/recording.report.json`：`status` 必须为 `ok`，且 `video_duration` 与 `audio_duration` 偏差 ≤ 0.5s。
+5. 若 `run_recording.py` 失败，修复环境/权限/window_id 后**重跑同一命令**；不要换自研录屏编排。
 
 **要求：**
 

@@ -158,13 +158,34 @@ async def build_narration(
         concat_entries = list(clip_paths)
 
     concat_audio(paths, concat_entries, paths.narration_wav)
-    write_subtitles(timings, paths.captions_srt, paths.captions_ass)
+    cues = write_subtitles(timings, paths.captions_srt, paths.captions_ass)
 
     data["status"] = "narrated"
     save_segments(paths, data)
     update_run_status(paths, "narrated")
 
-    return timings
+    return timings, cues
+
+
+def regenerate_captions(paths: RunPaths) -> tuple[list[dict], list[dict]]:
+    """从已 narrated 的 segments.json 重新生成单行字幕，不重跑 TTS。"""
+    data = load_segments(paths)
+    segments = data.get("segments", [])
+    if not segments:
+        raise ValueError("segments.json 中没有分段数据")
+    timings = [
+        {
+            "start": parse_srt_time(segment["start"]),
+            "end": parse_srt_time(segment["end"]),
+            "text": segment["text"],
+        }
+        for segment in segments
+        if "start" in segment and "end" in segment and "text" in segment
+    ]
+    if not timings:
+        raise ValueError("segments.json 缺少 start/end/text，无法重建字幕")
+    cues = write_subtitles(timings, paths.captions_srt, paths.captions_ass)
+    return timings, cues
 
 
 def main() -> None:
@@ -191,10 +212,21 @@ def main() -> None:
         default=DEFAULT_GAP,
         help=f"段间间隔秒数（默认: {DEFAULT_GAP}）",
     )
+    parser.add_argument(
+        "--captions-only",
+        action="store_true",
+        help="仅根据现有 segments.json 的 start/end/text 重建单行字幕，不重跑 TTS",
+    )
     args = parser.parse_args()
 
     paths = RunPaths(args.output_dir.resolve())
-    timings = asyncio.run(
+    if args.captions_only:
+        timings, cues = regenerate_captions(paths)
+        print(f"已重建字幕: {paths.captions_srt}, {paths.captions_ass}")
+        print(f"共 {len(timings)} 段旁白 → {len(cues)} 条单行字幕")
+        return
+
+    timings, cues = asyncio.run(
         build_narration(
             paths,
             voice_id=args.voice_id,
@@ -204,7 +236,7 @@ def main() -> None:
     )
     print(f"已生成配音: {paths.narration_wav}")
     print(f"已生成字幕: {paths.captions_srt}, {paths.captions_ass}")
-    print(f"共 {len(timings)} 段，状态已更新为 narrated")
+    print(f"共 {len(timings)} 段旁白 → {len(cues)} 条单行字幕，状态已更新为 narrated")
 
 
 if __name__ == "__main__":

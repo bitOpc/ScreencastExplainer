@@ -129,7 +129,7 @@ Agent 可以用 `segments.json` 的 `start` / `end` 推导 `actions.json` 的 `a
 | 文件 | 来源 |
 |------|------|
 | `narration.wav` | 各段 TTS 音频拼接（含段间 gap） |
-| `captions.srt` | 由 `start`/`end`/`text` 生成 |
+| `captions.srt` | 由 `start`/`end`/`text` 生成；**每条 cue 仅 1 行**，长段落自动拆成多条短时序 |
 | `captions.ass` | 同上，ASS 格式供 ffmpeg 硬字幕 |
 
 ## 编写建议
