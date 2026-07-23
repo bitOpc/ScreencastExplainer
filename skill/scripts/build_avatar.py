@@ -157,11 +157,12 @@ def concat_avatar_clips(
 
 
 def _presenter_config(presenter_cfg: dict[str, Any] | None) -> dict[str, Any]:
-    defaults = default_presenter_config()
-    config = load_presenter_config() if presenter_cfg is None else presenter_cfg
-    defaults.update(config)
-    defaults["sadtalker"].update(config.get("sadtalker", {}))
-    return defaults
+    merged = default_presenter_config()
+    incoming = load_presenter_config() if presenter_cfg is None else presenter_cfg
+    sadtalker = {**merged["sadtalker"], **incoming.get("sadtalker", {})}
+    merged.update(incoming)
+    merged["sadtalker"] = sadtalker
+    return merged
 
 
 def _write_report(paths: RunPaths, segments: list[dict[str, Any]]) -> None:

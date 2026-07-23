@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from build_avatar import build_avatar, list_narration_clips
+from build_avatar import _presenter_config, build_avatar, list_narration_clips
 from lib.paths import RunPaths
 
 
@@ -20,6 +20,16 @@ def test_list_narration_clips_sorted(tmp_run_dir):
     found = list_narration_clips(paths)
 
     assert [path.name for path in found] == ["clip_001.wav", "clip_002.wav"]
+
+
+def test_presenter_config_preserves_unspecified_sadtalker_defaults():
+    config = _presenter_config({"sadtalker": {"still": False}})
+
+    assert config["sadtalker"] == {
+        "still": False,
+        "preprocess": "full",
+        "face_model_resolution": 512,
+    }
 
 
 def test_build_avatar_requires_confirmation(tmp_run_dir):
