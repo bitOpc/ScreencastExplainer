@@ -69,6 +69,18 @@ class RunPaths:
         return self.video_dir / "cover.report.json"
 
     @property
+    def avatar_json(self) -> Path:
+        return self.root / "avatar.json"
+
+    @property
+    def avatar_mp4(self) -> Path:
+        return self.video_dir / "avatar.mp4"
+
+    @property
+    def avatar_report_json(self) -> Path:
+        return self.video_dir / "avatar.report.json"
+
+    @property
     def work_audio_dir(self) -> Path:
         return self.root / "workaudio"
 

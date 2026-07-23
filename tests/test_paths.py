@@ -14,3 +14,10 @@ def test_run_paths_resolve(tmp_path: Path):
     assert paths.final_mp4 == run_dir / "video" / "final.mp4"
     assert paths.cover_png == run_dir / "video" / "cover.png"
     assert paths.cover_report_json == run_dir / "video" / "cover.report.json"
+
+
+def test_avatar_paths(tmp_run_dir):
+    paths = RunPaths(tmp_run_dir)
+    assert paths.avatar_json == tmp_run_dir / "avatar.json"
+    assert paths.avatar_mp4 == tmp_run_dir / "video" / "avatar.mp4"
+    assert paths.avatar_report_json == tmp_run_dir / "video" / "avatar.report.json"
