@@ -39,8 +39,35 @@ python3 skill/scripts/doctor.py --json
 
 **禁止**在无用户明确要求时运行无 `--platform` 的 `./install.sh`。
 
+### Step 4: 可选 — 更新 SadTalker（真人讲解）
+
+仅当用户曾安装过 Presenter Avatar（`~/.screencast-explainer/presenter.json` 中 `installed=true`）且需要更新 SadTalker 时：
+
+```bash
+# 拉取上游 SadTalker
+git -C ~/.sadtalker pull
+
+# 重跑安装脚本（刷新 venv 依赖与 presenter.json；须用户确认 --yes）
+cd ~/.screencast-explainer
+bash scripts/install_presenter.sh --yes
+```
+
+若用户要**关闭**真人讲解能力（不卸载 SadTalker 文件）：
+
+```bash
+PYTHONPATH=~/.screencast-explainer/skill/scripts \
+  python3 -c '
+from lib.presenter_config import load_presenter_config, save_presenter_config
+cfg = load_presenter_config()
+cfg["enabled"] = False
+save_presenter_config(cfg)
+'
+```
+
+详见 [presenter-avatar.md](../skill/references/presenter-avatar.md)。
+
 ### Notes
 
 - 符号链接安装方式下，pull 后 skill 内容自动生效；`install.sh` 用于修复链接或切换 Hermes profile
-- 若 doctor 失败，按 [install.md](install.md) Step 5–6 处理
+- 若 doctor 失败，按 [install.md](install.md) Step 5–7 处理
 - 用户项目内 `./outputs/` 历史运行数据不受影响

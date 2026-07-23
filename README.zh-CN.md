@@ -2,11 +2,11 @@
 
 [English](README.md) | **简体中文**
 
-跨平台 Agent Skill，用于生成**真实桌面应用录屏讲解视频**（旁白 + 硬字幕），而非黑底纯字幕视频。
+跨平台 Agent Skill，用于生成**真实桌面应用录屏讲解视频**（旁白 + 硬字幕），而非黑底纯字幕视频。可选**本地 SadTalker 真人讲解画中画**（右下角圆形小窗，需用户确认后启用）。
 
 ## 效果演示
 
-真实 Obsidian 录屏讲解（Transformer + Attention）。GIF 展示硬字幕与滚动；完整旁白见 YouTube。
+真实 Obsidian 录屏讲解（Transformer + Attention）。GIF 展示硬字幕与滚动；完整旁白见 YouTube。可选在右下角叠加本地 SadTalker 真人讲解画中画。
 
 <p align="center">
   <a href="https://youtu.be/Es6ZjRlRd_Q">
@@ -84,6 +84,7 @@ python3 skill/scripts/doctor.py --json
 | 3 | Agent | 撰写 `script.md` |
 | 4 | Agent + 脚本 | 写入 `segments.json`，运行 `init_run.py` |
 | 5 | 脚本 | `build_narration.py` 生成旁白与字幕 |
+| 5b | Agent + 脚本 | 可选：本片真人讲解确认 → `build_avatar.py` |
 | 6 | Agent | Computer Use 校准 UI 动作，写入 `actions.json` |
 | 7 | 脚本 | `run_recording.py` 单窗口录屏 + cua-driver 本地时间轴回放 |
 | 8 | 脚本 | `ingest_capture.py` → `compose_video.py` → `build_cover.py` |
@@ -121,11 +122,13 @@ ScreencastExplainer/
 │   │   ├── failure-modes.md
 │   │   ├── segment-schema.md
 │   │   ├── action-timeline.md
+│   │   ├── presenter-avatar.md
 │   │   └── install-paths.md
 │   └── scripts/
 │       ├── doctor.py
 │       ├── init_run.py
 │       ├── build_narration.py
+│       ├── build_avatar.py
 │       ├── timeline_player.py
 │       ├── run_recording.py
 │       ├── ingest_capture.py
@@ -165,6 +168,7 @@ ScreencastExplainer/
 | [skill/references/action-timeline.md](skill/references/action-timeline.md) | `actions.json` 通用 UI 动作时间轴 |
 | [skill/references/install-paths.md](skill/references/install-paths.md) | 四平台安装路径 |
 | [skill/references/computer-use-token-policy.md](skill/references/computer-use-token-policy.md) | 省 token 策略（Agent 指引，非代码模式） |
+| [skill/references/presenter-avatar.md](skill/references/presenter-avatar.md) | 可选真人讲解（SadTalker）安装与成片确认 |
 | [docs/install.md](docs/install.md) | Agent 一句话安装剧本 |
 | [docs/update.md](docs/update.md) | Agent 更新剧本 |
 

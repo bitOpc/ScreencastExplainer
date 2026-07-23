@@ -45,6 +45,7 @@ triggers:
 3. 视频画面是真实 App 界面
 4. 画面随着讲解推进而推进
 5. 最终输出成片、音频、字幕及交付清单
+6. 若用户在本片启用了真人讲解，成片右下角应有圆形真人画中画（口型跟随旁白）
 
 ## 参考文档
 
@@ -59,6 +60,7 @@ triggers:
 | [action-timeline.md](references/action-timeline.md) | `actions.json` 通用 UI 动作时间轴 |
 | [install-paths.md](references/install-paths.md) | 四平台安装路径与 `install.sh` 用法 |
 | [recording-window.md](references/recording-window.md) | 单窗口后台录屏（`screencapture -v -l`） |
+| [presenter-avatar.md](references/presenter-avatar.md) | 可选真人讲解：安装/成片确认剧本、耗时估算、半身照 |
 | [computer-use-token-policy.md](references/computer-use-token-policy.md) | Computer Use 省 token 策略（精简/常态/浪费，**非代码开关**） |
 
 ## 安装
@@ -155,6 +157,7 @@ Agent 额外输出：
 doctor → init_run
 → [Agent 写 script.md + segments.json]
 → build_narration
+→ [可选：本片真人讲解确认 → build_avatar.py]
 → [Agent: 校准 UI 动作并写 actions.json]
 → [run_recording.py: record_window.py 单窗口录屏 + timeline_player.py 直连 cua-driver 回放 UI → capture/raw.mp4]
 → ingest_capture → compose_video
@@ -295,6 +298,32 @@ python3 <skill-root>/scripts/build_narration.py \
 
 **注意：** `actions.json` 的 `at` 必须对齐 narrated 后的 `start`/`end`，不要用草稿里的 `expected_duration` 推算。
 
+### 5b. 可选 — 真人讲解画面（`build_avatar.py`）
+
+**前置：** `presenter.json` 中 `enabled=true` 且 `installed=true`。否则跳过，行为与现网一致。
+
+`build_narration.py` 完成后，**在录屏之前**，按 [presenter-avatar.md](references/presenter-avatar.md) 执行成片三步确认：
+
+1. 本片是否启用真人讲解？
+2. 告知本片预估耗时（CUDA：旁白秒数 × 2–4 / 60 分钟；无 CUDA：「可能数小时」）并获用户确认
+3. 半身照：沿用 / 更换 / 首次收集 → 写入 `$RUN/avatar.json`
+
+**硬规则（违反即错误）：**
+
+1. **禁止**未获本片启用确认就调用 `build_avatar.py`
+2. **禁止**未告知耗时并获确认就开始生成
+3. **禁止**无合格半身照或占位图生成 avatar
+4. **禁止**静默安装 SadTalker（安装见 `docs/install.md` Step 6，`install_presenter.sh --yes`）
+5. 用户取消或生成失败 → 可 `--no-avatar` 继续合成，仍须交付无角色成片
+
+用户确认启用后：
+
+```bash
+python3 <skill-root>/scripts/build_avatar.py --output-dir "$RUN"
+```
+
+输出 `video/avatar.mp4`（无音轨）与 `video/avatar.report.json`。随后进入步骤 6 校准 UI 动作。
+
 ### 6. 校准 UI 动作并写入 `actions.json`（Computer Use，录屏前必做）
 
 **省 token：** 默认按 [computer-use-token-policy.md](references/computer-use-token-policy.md) 的「精简」策略执行——校准阶段少截图，录屏中不为看画面而 capture。精简/常态/浪费是 Agent 操作档位，**不是** CLI 或 Python 模式。
@@ -384,14 +413,15 @@ python3 <skill-root>/scripts/ingest_capture.py \
 
 python3 <skill-root>/scripts/compose_video.py \
   --output-dir ./outputs/<run-id> \
-  [--crf 18]
+  [--crf 18] \
+  [--with-avatar | --no-avatar]
 
 python3 <skill-root>/scripts/build_cover.py \
   --output-dir ./outputs/<run-id>
 ```
 
 - `ingest_capture.py`：校验 `capture/raw.mp4` 与 `narration.wav` 时长（容差 ±0.5s），标准化为 `video/normalized.mp4`
-- `compose_video.py`：混合旁白 + 硬字幕 → `video/final.mp4`
+- `compose_video.py`：混合旁白 + 硬字幕（+ 可选 avatar 画中画）→ `video/final.mp4`
 - `build_cover.py`：从成片帧 + 运行元数据生成 `video/cover.png`（暗色遮罩 + 中英文标题，风格参考 YouTube 封面）
 
 若 `ingest_capture.py` 报告音视频时长不匹配 → 见 [failure-modes.md](references/failure-modes.md) 模式 4。
@@ -406,6 +436,7 @@ python3 <skill-root>/scripts/build_cover.py \
 - 音频路径（`narration.wav`）
 - 字幕路径（`captions.srt` / `captions.ass`）
 - 成片路径（`video/final.mp4`）
+- 若启用真人讲解：`video/avatar.mp4`、`video/avatar.report.json`
 - 封面路径（`video/cover.png`）
 - 时长
 - 实际使用声音
@@ -445,6 +476,7 @@ outputs/<run-id>/
 ├── narration.wav
 ├── captions.srt
 ├── captions.ass
+├── avatar.json                 # 可选：本片真人讲解确认
 ├── capture/
 │   └── raw.mp4
 └── video/

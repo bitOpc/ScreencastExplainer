@@ -2,11 +2,11 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
-Cross-platform Agent skill for producing **real desktop app screencast explainer videos** (narration + burned-in subtitles), not black-background subtitle-only videos.
+Cross-platform Agent skill for producing **real desktop app screencast explainer videos** (narration + burned-in subtitles), not black-background subtitle-only videos. Optional **local SadTalker presenter avatar** (real-person picture-in-picture, bottom-right) when enabled.
 
 ## Demo
 
-Real Obsidian screencast explainer (Obsidian · Transformer + Attention). GIF preview shows burned-in subtitles and scroll; full video has narration on YouTube.
+Real Obsidian screencast explainer (Obsidian · Transformer + Attention). GIF preview shows burned-in subtitles and scroll; full video has narration on YouTube. Optionally overlay a local SadTalker real-person presenter in the bottom-right corner.
 
 <p align="center">
   <a href="https://youtu.be/Es6ZjRlRd_Q">
@@ -84,6 +84,7 @@ python3 skill/scripts/doctor.py --json
 | 3 | Agent | Write `script.md` |
 | 4 | Agent + script | Write `segments.json`, run `init_run.py` |
 | 5 | Script | `build_narration.py` generates narration and captions |
+| 5b | Agent + Script | Optional: per-run presenter confirm → `build_avatar.py` |
 | 6 | Agent | Computer Use calibrates UI actions, writes `actions.json` |
 | 7 | Script | `run_recording.py` single-window capture + cua-driver local timeline playback |
 | 8 | Script | `ingest_capture.py` → `compose_video.py` → `build_cover.py` |
@@ -122,11 +123,13 @@ ScreencastExplainer/
 │   │   ├── failure-modes.md
 │   │   ├── segment-schema.md
 │   │   ├── action-timeline.md
+│   │   ├── presenter-avatar.md
 │   │   └── install-paths.md
 │   └── scripts/
 │       ├── doctor.py
 │       ├── init_run.py
 │       ├── build_narration.py
+│       ├── build_avatar.py
 │       ├── timeline_player.py
 │       ├── run_recording.py
 │       ├── ingest_capture.py
@@ -166,6 +169,7 @@ ScreencastExplainer/
 | [skill/references/action-timeline.md](skill/references/action-timeline.md) | `actions.json` generic UI action timeline |
 | [skill/references/install-paths.md](skill/references/install-paths.md) | Four-platform install paths |
 | [skill/references/computer-use-token-policy.md](skill/references/computer-use-token-policy.md) | Token-saving strategy (Agent guidance) |
+| [skill/references/presenter-avatar.md](skill/references/presenter-avatar.md) | Optional real-person presenter (SadTalker) install & per-run confirm |
 | [docs/install.md](docs/install.md) | Agent one-line install playbook |
 | [docs/update.md](docs/update.md) | Agent update playbook |
 
