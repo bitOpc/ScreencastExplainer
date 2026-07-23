@@ -10,6 +10,8 @@ from pathlib import Path
 
 from PIL import ImageFont
 
+from lib.presenter_config import load_presenter_config, presenter_config_path
+
 DEFAULT_VOICE_ID = "zh-CN-YunxiNeural"
 DEFAULT_VOICE_RATE = "-3%"
 
@@ -38,9 +40,54 @@ def _cjk_font_available() -> bool:
     return False
 
 
+def _presenter_status() -> dict[str, str]:
+    """返回可选 Presenter 能力状态，不将其作为主流程依赖。"""
+    config_path = presenter_config_path()
+    if not config_path.is_file():
+        return {
+            "presenter_enabled": "not_configured",
+            "presenter_installed": "not_configured",
+            "presenter_has_cuda": "not_configured",
+            "presenter_avatar": "not_configured",
+        }
+
+    try:
+        config = load_presenter_config(config_path)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return {
+            "presenter_enabled": "unavailable",
+            "presenter_installed": "unavailable",
+            "presenter_has_cuda": "unavailable",
+            "presenter_avatar": "unavailable",
+        }
+
+    installed = bool(config.get("installed"))
+    avatar_image = config.get("avatar_image")
+    avatar_status = "not_configured"
+    if avatar_image:
+        avatar_status = (
+            "available" if Path(str(avatar_image)).expanduser().is_file() else "unavailable"
+        )
+
+    return {
+        "presenter_enabled": "available"
+        if config.get("enabled")
+        else "unavailable",
+        "presenter_installed": "available" if installed else "not_configured",
+        "presenter_has_cuda": (
+            "available"
+            if config.get("has_cuda")
+            else "unavailable"
+            if installed
+            else "not_configured"
+        ),
+        "presenter_avatar": avatar_status,
+    }
+
+
 def check_dependencies() -> dict[str, str]:
     edge = _edge_tts_available()
-    return {
+    result = {
         "python3": "available",
         "ffmpeg": "available" if _available("ffmpeg") else "unavailable",
         "ffprobe": "available" if _available("ffprobe") else "unavailable",
@@ -50,6 +97,8 @@ def check_dependencies() -> dict[str, str]:
         "selected_voice": DEFAULT_VOICE_ID if edge else "unavailable",
         "selected_voice_rate": DEFAULT_VOICE_RATE if edge else "unavailable",
     }
+    result.update(_presenter_status())
+    return result
 
 
 def main() -> None:
