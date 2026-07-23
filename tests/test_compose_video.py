@@ -77,3 +77,31 @@ def test_main_updates_run_status(tmp_run_dir):
             main()
 
     assert load_run(paths)["status"] == "composed"
+
+
+def test_build_mux_command_with_avatar(tmp_run_dir):
+    paths = RunPaths(tmp_run_dir)
+    paths.normalized_mp4.write_bytes(b"x")
+    paths.narration_wav.write_bytes(b"x")
+    paths.captions_ass.write_bytes(b"x")
+    paths.video_dir.mkdir(parents=True, exist_ok=True)
+    paths.avatar_mp4.write_bytes(b"x")
+    paths.avatar_json.write_text(
+        '{"use_presenter": true, "source_image": "a.png", '
+        '"estimated_seconds": 10, "user_confirmed_slow": true}',
+        encoding="utf-8",
+    )
+    cmd = build_mux_command(paths, crf=18, with_avatar=True)
+    assert str(paths.avatar_mp4) in cmd
+    assert cmd.count("-i") >= 3
+
+
+def test_build_mux_command_skips_avatar_when_disabled(tmp_run_dir):
+    paths = RunPaths(tmp_run_dir)
+    paths.normalized_mp4.write_bytes(b"x")
+    paths.narration_wav.write_bytes(b"x")
+    paths.captions_ass.write_bytes(b"x")
+    paths.video_dir.mkdir(parents=True, exist_ok=True)
+    paths.avatar_mp4.write_bytes(b"x")
+    cmd = build_mux_command(paths, crf=18, with_avatar=False)
+    assert str(paths.avatar_mp4) not in cmd
