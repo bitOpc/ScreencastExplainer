@@ -83,6 +83,56 @@ def test_build_avatar_passes_batch_size(tmp_run_dir, tmp_path):
     assert mock_segment.call_args.kwargs["batch_size"] == 4
     assert mock_segment.call_args.kwargs["face_model_resolution"] == 256
     assert mock_segment.call_args.kwargs["preprocess"] == "crop"
+    assert mock_segment.call_args.kwargs["cpu"] is False
+
+
+def test_build_avatar_uses_framing_mode_params(tmp_run_dir, tmp_path):
+    paths = RunPaths(tmp_run_dir)
+    paths.ensure_dirs()
+    photo = tmp_path / "face.png"
+    photo.write_bytes(b"img")
+    paths.avatar_json.write_text(
+        json.dumps(
+            {
+                "use_presenter": True,
+                "framing_mode": "medium",
+                "source_image": str(photo),
+                "sadtalker": {"still": True, "preprocess": "full"},
+                "estimated_seconds": 2,
+                "user_confirmed_slow": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+    clips = paths.work_audio_dir / "edge_clips"
+    clips.mkdir(parents=True)
+    (clips / "clip_001.wav").write_bytes(b"x")
+    cfg = {
+        "profile": "fast",
+        "sadtalker_root": str(tmp_path / "sadtalker"),
+        "has_cuda": True,
+        "sadtalker": {},
+    }
+
+    with patch("build_avatar.run_sadtalker_segment") as mock_segment, patch(
+        "build_avatar.concat_avatar_clips"
+    ) as mock_concat:
+
+        def fake_segment(**kwargs):
+            kwargs["out_mp4"].parent.mkdir(parents=True, exist_ok=True)
+            kwargs["out_mp4"].write_bytes(b"mp4")
+
+        mock_segment.side_effect = fake_segment
+        mock_concat.side_effect = (
+            lambda clip_mp4s, gap_seconds, output: output.write_bytes(b"out")
+        )
+        build_avatar(paths, presenter_cfg=cfg)
+
+    assert mock_segment.call_args.kwargs["still"] is True
+    assert mock_segment.call_args.kwargs["preprocess"] == "full"
+    assert mock_segment.call_args.kwargs["cpu"] is False
+    report = json.loads(paths.avatar_report_json.read_text(encoding="utf-8"))
+    assert report["framing_mode"] == "medium"
 
 
 def test_build_avatar_requires_confirmation(tmp_run_dir):

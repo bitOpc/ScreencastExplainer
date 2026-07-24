@@ -31,6 +31,28 @@ SADTALKER_PROFILES: dict[str, dict[str, Any]] = {
     },
 }
 
+# 构图模式 → SadTalker still/preprocess（由 Agent 裁切预览后用户选择）
+FRAMING_MODES: dict[str, dict[str, Any]] = {
+    "head": {
+        "label": "头部特写",
+        "still": False,
+        "preprocess": "crop",
+        "description": "脸部特写；头姿可动，口型最自然",
+    },
+    "medium": {
+        "label": "中景",
+        "still": True,
+        "preprocess": "full",
+        "description": "肩以上 + 背景；锁姿态，避免头身脱节",
+    },
+    "full": {
+        "label": "全景",
+        "still": True,
+        "preprocess": "full",
+        "description": "尽量全身/最大画幅；锁姿态，只动嘴",
+    },
+}
+
 
 def presenter_config_path() -> Path:
     return CONFIG_DIR / "presenter.json"
@@ -55,9 +77,18 @@ def default_presenter_config() -> dict[str, Any]:
 
 
 def resolve_sadtalker_settings(config: dict[str, Any]) -> dict[str, Any]:
-    """按 profile 合并 sadtalker 覆盖项；无 CUDA 时限制 batch_size≤2。"""
+    """按 profile / framing_mode 合并 sadtalker；无 CUDA 时限制 batch_size≤2。"""
     profile_name = str(config.get("profile") or "fast")
     base = dict(SADTALKER_PROFILES.get(profile_name, SADTALKER_PROFILES["fast"]))
+    framing_mode = config.get("framing_mode")
+    if framing_mode:
+        framing = FRAMING_MODES.get(str(framing_mode))
+        if framing is None:
+            raise ValueError(
+                f"未知 framing_mode: {framing_mode}；可选: {', '.join(FRAMING_MODES)}"
+            )
+        base["still"] = bool(framing["still"])
+        base["preprocess"] = str(framing["preprocess"])
     overrides = config.get("sadtalker") or {}
     if isinstance(overrides, dict):
         base.update(overrides)
@@ -69,6 +100,19 @@ def resolve_sadtalker_settings(config: dict[str, Any]) -> dict[str, Any]:
     base["preprocess"] = str(base.get("preprocess", "crop"))
     base["face_model_resolution"] = int(base.get("face_model_resolution", 256))
     return base
+
+
+def framing_sadtalker_params(framing_mode: str) -> dict[str, Any]:
+    """返回某构图模式对应的 still/preprocess（不含分辨率档位）。"""
+    framing = FRAMING_MODES.get(framing_mode)
+    if framing is None:
+        raise ValueError(
+            f"未知 framing_mode: {framing_mode}；可选: {', '.join(FRAMING_MODES)}"
+        )
+    return {
+        "still": bool(framing["still"]),
+        "preprocess": str(framing["preprocess"]),
+    }
 
 
 def load_presenter_config(path: Path | None = None) -> dict[str, Any]:

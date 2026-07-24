@@ -163,7 +163,11 @@ def concat_avatar_clips(
     )
 
 
-def _presenter_config(presenter_cfg: dict[str, Any] | None) -> dict[str, Any]:
+def _presenter_config(
+    presenter_cfg: dict[str, Any] | None,
+    *,
+    avatar: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     merged = default_presenter_config()
     incoming = load_presenter_config() if presenter_cfg is None else presenter_cfg
     explicit_sadtalker = (
@@ -177,25 +181,51 @@ def _presenter_config(presenter_cfg: dict[str, Any] | None) -> dict[str, Any]:
         merged[key] = value
     profile = str(merged.get("profile") or "fast")
     merged["profile"] = profile
+
+    framing_mode = None
+    avatar_sadtalker: dict[str, Any] = {}
+    if isinstance(avatar, dict):
+        framing_mode = avatar.get("framing_mode")
+        if isinstance(avatar.get("sadtalker"), dict):
+            avatar_sadtalker = dict(avatar["sadtalker"])
+
+    # 优先级：avatar.json.sadtalker > framing_mode 映射 > profile 默认
+    overrides: dict[str, Any] = {}
+    if explicit_sadtalker:
+        overrides.update(explicit_sadtalker)
+    if avatar_sadtalker:
+        overrides.update(avatar_sadtalker)
+
+    merged["framing_mode"] = framing_mode
     merged["sadtalker"] = resolve_sadtalker_settings(
         {
             "profile": profile,
             "has_cuda": merged.get("has_cuda"),
-            "sadtalker": explicit_sadtalker or {},
+            "framing_mode": framing_mode,
+            "sadtalker": overrides,
         }
     )
     return merged
 
 
-def _write_report(paths: RunPaths, segments: list[dict[str, Any]]) -> None:
+def _write_report(
+    paths: RunPaths,
+    segments: list[dict[str, Any]],
+    *,
+    framing_mode: str | None = None,
+    sadtalker: dict[str, Any] | None = None,
+) -> None:
     paths.avatar_report_json.parent.mkdir(parents=True, exist_ok=True)
+    payload: dict[str, Any] = {
+        "segments": segments,
+        "output": str(paths.avatar_mp4),
+    }
+    if framing_mode:
+        payload["framing_mode"] = framing_mode
+    if sadtalker:
+        payload["sadtalker"] = sadtalker
     paths.avatar_report_json.write_text(
-        json.dumps(
-            {"segments": segments, "output": str(paths.avatar_mp4)},
-            ensure_ascii=False,
-            indent=2,
-        )
-        + "\n",
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
 
@@ -215,12 +245,14 @@ def build_avatar(
     if not clips:
         raise ValueError("没有可用的旁白片段")
 
-    config = _presenter_config(presenter_cfg)
+    config = _presenter_config(presenter_cfg, avatar=avatar)
     sadtalker_root = Path(config["sadtalker_root"]).expanduser()
     python = sadtalker_root / "venv" / "bin" / "python"
     sadtalker = config["sadtalker"]
     clip_mp4s: list[Path] = []
     report_segments: list[dict[str, Any]] = []
+    # 有 CUDA 时不用 --cpu；无 CUDA 时也不强塞 --cpu，便于 Apple Silicon 走 MPS
+    force_cpu = bool(config.get("force_cpu"))
 
     for index, audio in enumerate(clips, start=1):
         out_mp4 = paths.video_dir / "avatar_segments" / f"clip_{index:03d}.mp4"
@@ -236,7 +268,7 @@ def build_avatar(
                 preprocess=str(sadtalker["preprocess"]),
                 face_model_resolution=int(sadtalker["face_model_resolution"]),
                 batch_size=int(sadtalker["batch_size"]),
-                cpu=not bool(config["has_cuda"]),
+                cpu=force_cpu,
             )
         except Exception as error:
             report_segments.append(
@@ -246,7 +278,12 @@ def build_avatar(
                     "seconds": time.monotonic() - started_at,
                 }
             )
-            _write_report(paths, report_segments)
+            _write_report(
+                paths,
+                report_segments,
+                framing_mode=str(avatar.get("framing_mode") or "") or None,
+                sadtalker=sadtalker,
+            )
             raise RuntimeError(f"SadTalker 生成第 {index} 段失败") from error
 
         clip_mp4s.append(out_mp4)
@@ -257,7 +294,12 @@ def build_avatar(
     try:
         concat_avatar_clips(clip_mp4s, DEFAULT_GAP, paths.avatar_mp4)
     finally:
-        _write_report(paths, report_segments)
+        _write_report(
+            paths,
+            report_segments,
+            framing_mode=str(avatar.get("framing_mode") or "") or None,
+            sadtalker=sadtalker,
+        )
     return paths.avatar_mp4
 
 

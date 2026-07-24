@@ -21,3 +21,4 @@ def test_avatar_paths(tmp_run_dir):
     assert paths.avatar_json == tmp_run_dir / "avatar.json"
     assert paths.avatar_mp4 == tmp_run_dir / "video" / "avatar.mp4"
     assert paths.avatar_report_json == tmp_run_dir / "video" / "avatar.report.json"
+    assert paths.avatar_framing_dir == tmp_run_dir / "avatar_framing"

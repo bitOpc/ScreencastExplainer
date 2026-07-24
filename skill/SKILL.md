@@ -60,7 +60,7 @@ triggers:
 | [action-timeline.md](references/action-timeline.md) | `actions.json` 通用 UI 动作时间轴 |
 | [install-paths.md](references/install-paths.md) | 四平台安装路径与 `install.sh` 用法 |
 | [recording-window.md](references/recording-window.md) | 单窗口后台录屏（`screencapture -v -l`） |
-| [presenter-avatar.md](references/presenter-avatar.md) | 可选真人讲解：安装/成片确认剧本、耗时估算、半身照 |
+| [presenter-avatar.md](references/presenter-avatar.md) | 可选真人讲解：安装/成片确认、构图预览（head/medium/full）、耗时估算 |
 | [computer-use-token-policy.md](references/computer-use-token-policy.md) | Computer Use 省 token 策略（精简/常态/浪费，**非代码开关**） |
 
 ## 安装
@@ -306,17 +306,18 @@ python3 <skill-root>/scripts/build_narration.py \
 
 1. 本片是否启用真人讲解？
 2. 告知本片预估耗时（CUDA / 默认 fast：旁白秒数 × 1.5–3 / 60 分钟；无 CUDA：「可能数小时」）并获用户确认
-3. 半身照：沿用 / 更换 / 首次收集 → 写入 `$RUN/avatar.json`
+3. 半身照：沿用 / 更换 / 首次收集 → `prepare_avatar_framing.py` 出 head/medium/full 预览 → 用户选构图 → 写入 `$RUN/avatar.json`（含 `framing_mode` + `chosen` 图）
 
 **硬规则（违反即错误）：**
 
 1. **禁止**未获本片启用确认就调用 `build_avatar.py`
 2. **禁止**未告知耗时并获确认就开始生成
 3. **禁止**无合格半身照或占位图生成 avatar
-4. **禁止**静默安装 SadTalker（安装见 `docs/install.md` Step 6，`install_presenter.sh --yes`）
-5. 用户取消或生成失败 → 可 `--no-avatar` 继续合成，仍须交付无角色成片
+4. **禁止**未完成构图选择（无 `framing_mode` / 无 `avatar_framing/chosen.png`）就生成 avatar
+5. **禁止**静默安装 SadTalker（安装见 `docs/install.md` Step 6，`install_presenter.sh --yes`）
+6. 用户取消或生成失败 → 可 `--no-avatar` 继续合成，仍须交付无角色成片
 
-用户确认启用后：
+用户确认启用并选定构图后：
 
 ```bash
 python3 <skill-root>/scripts/build_avatar.py --output-dir "$RUN"
@@ -476,7 +477,8 @@ outputs/<run-id>/
 ├── narration.wav
 ├── captions.srt
 ├── captions.ass
-├── avatar.json                 # 可选：本片真人讲解确认
+├── avatar.json                 # 可选：本片真人讲解确认（含 framing_mode）
+├── avatar_framing/             # 可选：head/medium/full 预览与 chosen.png
 ├── capture/
 │   └── raw.mp4
 └── video/

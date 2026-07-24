@@ -121,7 +121,7 @@ print(json.dumps(estimate_avatar_minutes(dur, has_cuda=cfg['has_cuda']), ensure_
 
 未告知耗时并获用户确认 → **禁止**开始生成。
 
-### 步骤 3：半身照
+### 步骤 3：半身照 + 构图选择
 
 | 情况 | Agent 动作 |
 |------|------------|
@@ -130,14 +130,14 @@ print(json.dumps(estimate_avatar_minutes(dur, has_cuda=cfg['has_cuda']), ensure_
 
 **照片要求（真人 only）：**
 
-- 真人正面半身照，脸部清晰、光线均匀
-- 建议包含肩以上；单边分辨率 ≥ 512px
+- 真人正面照，脸部清晰、光线均匀（可含半身/全身，后续再裁构图）
+- 建议单边分辨率 ≥ 512px
 - 格式：`.jpg` / `.jpeg` / `.png`
 - **禁止**卡通、插画、AI 虚拟脸、占位图
 
 **默认落盘路径：** `~/.screencast-explainer/avatars/default.png`
 
-复制并更新配置：
+复制并更新配置后，**必须**生成构图预览并让用户选择：
 
 ```bash
 PYTHONPATH=<skill-root>/scripts python3 -c "
@@ -150,44 +150,81 @@ cfg['avatar_image'] = str(dest)
 save_presenter_config(cfg)
 print(dest)
 "
+
+# 检脸并导出 head / medium / full 预览
+PYTHONPATH=<skill-root>/scripts \
+  python3 <skill-root>/scripts/prepare_avatar_framing.py \
+    --image ~/.screencast-explainer/avatars/default.png \
+    --output-dir "$RUN/avatar_framing"
 ```
 
-用户确认后，写入 `$RUN/avatar.json`（示例）：
+Agent 向用户展示 `$RUN/avatar_framing/{head,medium,full}.png` 三条路径与说明，请用户选择构图：
+
+| 模式 | 说明 | SadTalker |
+|------|------|-----------|
+| `head`（默认推荐小窗） | 头部特写 | `crop` + **可动**（`still=false`） |
+| `medium` | 中景（肩+背景） | `full` + **锁姿**（`still=true`） |
+| `full` | 全景（尽量全身） | `full` + **锁姿**（`still=true`） |
+
+用户选定后：
+
+```bash
+PYTHONPATH=<skill-root>/scripts \
+  python3 <skill-root>/scripts/prepare_avatar_framing.py \
+    --output-dir "$RUN/avatar_framing" \
+    --select head   # 或 medium / full
+```
+
+将 `selection.json` 内容写入 `$RUN/avatar.json`（示例）：
 
 ```json
 {
   "use_presenter": true,
-  "source_image": "/Users/you/.screencast-explainer/avatars/default.png",
+  "framing_mode": "head",
+  "source_image": "/path/to/$RUN/avatar_framing/chosen.png",
+  "source_original": "/path/to/$RUN/avatar_framing/original.png",
+  "sadtalker": {
+    "still": false,
+    "preprocess": "crop"
+  },
   "estimated_seconds": 613,
   "user_confirmed_slow": true
 }
 ```
 
+**硬规则：** 未完成构图选择、未写入 `framing_mode` + `source_image`（chosen 图）→ **禁止**调用 `build_avatar.py`。
+
 `user_confirmed_slow`：无 CUDA 时为 `true`；有 CUDA 时可省略或设为 `false`。
 
-## SadTalker 性能档位（`profile`）
+## SadTalker 性能档位（`profile`）与构图（`framing_mode`）
 
-写入 `~/.screencast-explainer/presenter.json` 的 `profile` 字段（也可在 `sadtalker` 下覆盖单项）。默认 **`fast`**，适合右下角 PiP：
+写入 `~/.screencast-explainer/presenter.json` 的 `profile` 字段控制**分辨率/batch**。本片 `avatar.json` 的 `framing_mode` 优先决定 **`still` / `preprocess`**。
 
-| profile | size | preprocess | batch_size | 说明 |
-|---------|------|------------|------------|------|
-| **fast**（默认） | 256 | crop | 4（无 CUDA 时钳到 ≤2） | 最快；小窗够用 |
-| **balanced** | 256 | full | 4（≤2） | 保留半身贴回 |
-| **quality** | 512 | full | 2 | 更清晰、更慢 |
+| profile | size | batch_size | 说明 |
+|---------|------|------------|------|
+| **fast**（默认） | 256 | 4（无 CUDA 时钳到 ≤2） | 最快；小窗够用 |
+| **balanced** | 256 | 4（≤2） | 同 256，便于覆盖 |
+| **quality** | 512 | 2 | 更清晰、更慢 |
+
+| framing_mode | preprocess | still |
+|--------------|------------|-------|
+| `head` | crop | false |
+| `medium` / `full` | full | true |
 
 说明：
 
 - SadTalker **固定 25fps**，不要指望改 15fps 加速（会伤口型）
 - **不要**默认开 `--enhancer gfpgan`（很慢）
 - `batch_size` 由 `build_avatar.py` 传给 `inference.py`；显存不足时改为 `2` 或改用 `quality`
+- 中景/全景**必须** `still=true`，否则易出现「头动身子不动」
 
-示例（切到半身折中档）：
+示例（切到更清晰档）：
 
 ```bash
 PYTHONPATH=<skill-root>/scripts python3 -c "
 from lib.presenter_config import load_presenter_config, save_presenter_config
 cfg = load_presenter_config()
-cfg['profile'] = 'balanced'
+cfg['profile'] = 'quality'
 save_presenter_config(cfg)
 "
 ```
@@ -253,7 +290,8 @@ python3 <skill-root>/scripts/compose_video.py --output-dir "$RUN"
 | `~/.screencast-explainer/presenter.json` | 全局开关、SadTalker 根目录、CUDA 探测、默认半身照 |
 | `~/.screencast-explainer/avatars/default.png` | 默认半身照落盘 |
 | `~/.sadtalker/` | SadTalker 源码、venv、权重（`SADTALKER_ROOT` 可覆盖） |
-| `$RUN/avatar.json` | 本片是否启用、源图、预估秒数、慢速确认 |
+| `$RUN/avatar.json` | 本片是否启用、构图模式、chosen 源图、预估秒数、慢速确认 |
+| `$RUN/avatar_framing/` | head/medium/full 预览、`framing_options.json`、`chosen.png` |
 | `$RUN/video/avatar.mp4` | 本片无音轨口型视频 |
 | `$RUN/video/avatar.report.json` | 分段生成报告 |
 

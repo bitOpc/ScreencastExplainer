@@ -81,6 +81,10 @@ class RunPaths:
         return self.video_dir / "avatar.report.json"
 
     @property
+    def avatar_framing_dir(self) -> Path:
+        return self.root / "avatar_framing"
+
+    @property
     def work_audio_dir(self) -> Path:
         return self.root / "workaudio"
 
@@ -89,3 +93,4 @@ class RunPaths:
         self.capture_dir.mkdir(parents=True, exist_ok=True)
         self.video_dir.mkdir(parents=True, exist_ok=True)
         self.work_audio_dir.mkdir(parents=True, exist_ok=True)
+        self.avatar_framing_dir.mkdir(parents=True, exist_ok=True)
