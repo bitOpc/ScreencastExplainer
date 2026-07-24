@@ -305,7 +305,7 @@ python3 <skill-root>/scripts/build_narration.py \
 `build_narration.py` 完成后，**在录屏之前**，按 [presenter-avatar.md](references/presenter-avatar.md) 执行成片三步确认：
 
 1. 本片是否启用真人讲解？
-2. 告知本片预估耗时（CUDA：旁白秒数 × 2–4 / 60 分钟；无 CUDA：「可能数小时」）并获用户确认
+2. 告知本片预估耗时（CUDA / 默认 fast：旁白秒数 × 1.5–3 / 60 分钟；无 CUDA：「可能数小时」）并获用户确认
 3. 半身照：沿用 / 更换 / 首次收集 → 写入 `$RUN/avatar.json`
 
 **硬规则（违反即错误）：**

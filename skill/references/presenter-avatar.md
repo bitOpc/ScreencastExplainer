@@ -92,12 +92,12 @@ Agent 必须让用户明确知晓并接受较慢速度，例如：
 
 读取旁白实际秒数（`ffprobe` 或 `narration.wav` 时长），结合 `presenter.json` 的 `has_cuda`，用与 `estimate_avatar_minutes` **一致**的公式告知用户：
 
-**有 CUDA（`has_cuda=true`）：**
+**有 CUDA（`has_cuda=true`，默认 fast 档）：**
 
-- 预估分钟下限 = 旁白秒数 × 2 / 60
-- 预估分钟上限 = 旁白秒数 × 4 / 60
-- 告知示例：`预估约 20–40 分钟`（10 分钟旁白即 600 秒）
-- 实时率约 0.25–0.5×（生成耗时约为旁白的 2–4 倍）
+- 预估分钟下限 = 旁白秒数 × 1.5 / 60
+- 预估分钟上限 = 旁白秒数 × 3 / 60
+- 告知示例：`预估约 15–30 分钟`（10 分钟旁白即 600 秒）
+- 生成耗时约为旁白的约 1.5–3 倍（`quality` 档更接近旧的 2–4 倍）
 
 Agent 可调用：
 
@@ -164,6 +164,33 @@ print(dest)
 ```
 
 `user_confirmed_slow`：无 CUDA 时为 `true`；有 CUDA 时可省略或设为 `false`。
+
+## SadTalker 性能档位（`profile`）
+
+写入 `~/.screencast-explainer/presenter.json` 的 `profile` 字段（也可在 `sadtalker` 下覆盖单项）。默认 **`fast`**，适合右下角 PiP：
+
+| profile | size | preprocess | batch_size | 说明 |
+|---------|------|------------|------------|------|
+| **fast**（默认） | 256 | crop | 4（无 CUDA 时钳到 ≤2） | 最快；小窗够用 |
+| **balanced** | 256 | full | 4（≤2） | 保留半身贴回 |
+| **quality** | 512 | full | 2 | 更清晰、更慢 |
+
+说明：
+
+- SadTalker **固定 25fps**，不要指望改 15fps 加速（会伤口型）
+- **不要**默认开 `--enhancer gfpgan`（很慢）
+- `batch_size` 由 `build_avatar.py` 传给 `inference.py`；显存不足时改为 `2` 或改用 `quality`
+
+示例（切到半身折中档）：
+
+```bash
+PYTHONPATH=<skill-root>/scripts python3 -c "
+from lib.presenter_config import load_presenter_config, save_presenter_config
+cfg = load_presenter_config()
+cfg['profile'] = 'balanced'
+save_presenter_config(cfg)
+"
+```
 
 ## 流水线顺序与命令
 

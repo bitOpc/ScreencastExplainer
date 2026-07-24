@@ -11,7 +11,11 @@ from typing import Any
 from build_narration import DEFAULT_GAP
 from lib.ffmpeg_util import run_ffmpeg
 from lib.paths import RunPaths
-from lib.presenter_config import default_presenter_config, load_presenter_config
+from lib.presenter_config import (
+    default_presenter_config,
+    load_presenter_config,
+    resolve_sadtalker_settings,
+)
 
 
 def load_run_avatar(paths: RunPaths) -> dict[str, Any]:
@@ -36,6 +40,7 @@ def run_sadtalker_segment(
     still: bool,
     preprocess: str,
     face_model_resolution: int,
+    batch_size: int = 4,
     cpu: bool = False,
 ) -> None:
     """为单段音频生成无音轨 SadTalker 视频。"""
@@ -54,6 +59,8 @@ def run_sadtalker_segment(
         preprocess,
         "--size",
         str(face_model_resolution),
+        "--batch_size",
+        str(batch_size),
     ]
     if still:
         command.append("--still")
@@ -159,9 +166,24 @@ def concat_avatar_clips(
 def _presenter_config(presenter_cfg: dict[str, Any] | None) -> dict[str, Any]:
     merged = default_presenter_config()
     incoming = load_presenter_config() if presenter_cfg is None else presenter_cfg
-    sadtalker = {**merged["sadtalker"], **incoming.get("sadtalker", {})}
-    merged.update(incoming)
-    merged["sadtalker"] = sadtalker
+    explicit_sadtalker = (
+        incoming["sadtalker"]
+        if isinstance(incoming.get("sadtalker"), dict)
+        else None
+    )
+    for key, value in incoming.items():
+        if key == "sadtalker":
+            continue
+        merged[key] = value
+    profile = str(merged.get("profile") or "fast")
+    merged["profile"] = profile
+    merged["sadtalker"] = resolve_sadtalker_settings(
+        {
+            "profile": profile,
+            "has_cuda": merged.get("has_cuda"),
+            "sadtalker": explicit_sadtalker or {},
+        }
+    )
     return merged
 
 
@@ -213,6 +235,7 @@ def build_avatar(
                 still=bool(sadtalker["still"]),
                 preprocess=str(sadtalker["preprocess"]),
                 face_model_resolution=int(sadtalker["face_model_resolution"]),
+                batch_size=int(sadtalker["batch_size"]),
                 cpu=not bool(config["has_cuda"]),
             )
         except Exception as error:

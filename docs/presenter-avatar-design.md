@@ -76,10 +76,12 @@ Agent 询问：是否需要「真人讲解画面」附加能力？
     "margin_px": 24,
     "shape": "circle"
   },
+  "profile": "fast",
   "sadtalker": {
     "still": true,
-    "preprocess": "full",
-    "face_model_resolution": 512
+    "preprocess": "crop",
+    "face_model_resolution": 256,
+    "batch_size": 4
   }
 }
 ```
@@ -157,7 +159,7 @@ narrate →（本片确认 / 半身照）→ build_avatar → record → ingest 
 
 ### build_avatar
 
-1. 按 `workaudio/edge_clips/clip_*.wav` **分段**调用 SadTalker（`--still --preprocess full`，分辨率 512）  
+1. 按 `workaudio/edge_clips/clip_*.wav` **分段**调用 SadTalker（默认 `profile=fast`：`--still --preprocess crop --size 256 --batch_size 4`；无 CUDA 时 batch≤2）  
 2. 段间 gap 用静止帧对齐 `narration.wav`  
 3. 输出 **无音轨** `video/avatar.mp4`（最终音轨仍为 `narration.wav`）  
 4. 写 `video/avatar.report.json`（每段耗时、成败）  

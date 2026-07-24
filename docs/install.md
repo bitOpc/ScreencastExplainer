@@ -147,7 +147,8 @@ python3 ~/.screencast-explainer/skill/scripts/doctor.py --json
 - 右下角圆形真人讲解小窗，口型跟随旁白；**仅真人半身照**，不支持卡通
 - 完全可选；不装不影响录屏 + 旁白 + 硬字幕
 - SadTalker 安装到 `~/.sadtalker/`，独立 venv，不进入主 skill venv
-- 粗估耗时：NVIDIA CUDA 约旁白时长的 2–4 倍；无 CUDA **可能数小时**
+- 粗估耗时：NVIDIA CUDA、默认 fast 档约旁白时长的 1.5–3 倍；无 CUDA **可能数小时**
+- 默认性能档 `profile=fast`（size 256 + crop + batch_size 4）；详见 `skill/references/presenter-avatar.md`
 - 半身照在首次成片启用时收集，安装时不要求上传
 
 **用户选「不需要」** — 写入 `enabled=false`：

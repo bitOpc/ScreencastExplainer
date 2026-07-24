@@ -29,8 +29,36 @@ def test_save_and_load_roundtrip(tmp_path):
 def test_estimate_cuda_range():
     result = estimate_avatar_minutes(600.0, has_cuda=True)
     assert result["needs_slow_confirm"] is False
-    assert result["min_minutes"] == 20.0  # 600*2/60
-    assert result["max_minutes"] == 40.0  # 600*4/60
+    assert result["min_minutes"] == 15.0  # 600*1.5/60
+    assert result["max_minutes"] == 30.0  # 600*3/60
+
+
+def test_default_sadtalker_is_fast_profile():
+    cfg = default_presenter_config()
+    assert cfg["profile"] == "fast"
+    assert cfg["sadtalker"]["face_model_resolution"] == 256
+    assert cfg["sadtalker"]["preprocess"] == "crop"
+    assert cfg["sadtalker"]["batch_size"] == 4
+
+
+def test_resolve_sadtalker_clamps_batch_without_cuda():
+    from lib.presenter_config import resolve_sadtalker_settings
+
+    settings = resolve_sadtalker_settings(
+        {"profile": "fast", "has_cuda": False, "sadtalker": {"batch_size": 8}}
+    )
+    assert settings["batch_size"] == 2
+
+
+def test_resolve_sadtalker_quality_profile():
+    from lib.presenter_config import resolve_sadtalker_settings
+
+    settings = resolve_sadtalker_settings(
+        {"profile": "quality", "has_cuda": True, "sadtalker": {}}
+    )
+    assert settings["face_model_resolution"] == 512
+    assert settings["preprocess"] == "full"
+    assert settings["batch_size"] == 2
 
 
 def test_estimate_cpu_needs_slow_confirm():
