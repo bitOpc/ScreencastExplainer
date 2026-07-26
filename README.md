@@ -6,15 +6,15 @@ Cross-platform Agent skill for producing **real desktop app screencast explainer
 
 ## Demo
 
-Real Obsidian screencast explainer (Obsidian · Transformer + Attention). GIF preview shows burned-in subtitles and scroll; full video has narration on YouTube. Optionally overlay a local SadTalker real-person presenter in the bottom-right corner.
+GIF preview (Obsidian · Prompt Engineering): burned-in subtitles, note scroll, and optional SadTalker real-person presenter PiP (bottom-right). A longer narration example is on YouTube.
 
 <p align="center">
   <a href="https://youtu.be/Es6ZjRlRd_Q">
-    <img src="https://raw.githubusercontent.com/bitOpc/ScreencastExplainer/main/docs/assets/demo.gif" alt="Demo preview — Obsidian screencast with subtitles and scroll" width="720" />
+    <img src="https://raw.githubusercontent.com/bitOpc/ScreencastExplainer/main/docs/assets/demo.gif" alt="Demo preview — Obsidian screencast with subtitles, scroll, and presenter avatar" width="720" />
   </a>
 </p>
 
-**Full version (~10 min):** [Watch on YouTube](https://youtu.be/Es6ZjRlRd_Q)
+**Full-length example (~10 min, Transformer + Attention):** [Watch on YouTube](https://youtu.be/Es6ZjRlRd_Q)
 
 ## One-line install
 

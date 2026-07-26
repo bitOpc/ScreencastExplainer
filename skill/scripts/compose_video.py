@@ -3,14 +3,27 @@
 
 import argparse
 import json
+import subprocess
 from pathlib import Path
 
-from lib.avatar_overlay import build_pip_filter_complex
-from lib.ffmpeg_util import run_ffmpeg
+from lib.avatar_overlay import (
+    DEFAULT_MIN_PIP_FPS,
+    build_pip_filter_complex,
+    resolve_pip_output_fps,
+)
+from lib.ffmpeg_util import probe_frame_rate, run_ffmpeg
 from lib.paths import RunPaths
 from lib.run_state import update_run_status
 
 DEFAULT_CRF = 18
+
+
+def _resolve_pip_fps(normalized_mp4: Path) -> int:
+    """读取主画面帧率并抬到 PiP 合成下限；探测失败时回退到默认 25。"""
+    try:
+        return resolve_pip_output_fps(probe_frame_rate(normalized_mp4))
+    except (OSError, ValueError, subprocess.CalledProcessError):
+        return DEFAULT_MIN_PIP_FPS
 
 
 def format_ass_filter(path: Path) -> str:
@@ -72,6 +85,7 @@ def build_mux_command(
     ]
 
     if use_avatar:
+        pip_fps = _resolve_pip_fps(paths.normalized_mp4)
         return [
             "-hide_banner",
             "-y",
@@ -82,11 +96,13 @@ def build_mux_command(
             "-i",
             str(paths.narration_wav),
             "-filter_complex",
-            build_pip_filter_complex(captions_ass=paths.captions_ass),
+            build_pip_filter_complex(captions_ass=paths.captions_ass, fps=pip_fps),
             "-map",
             "[vout]",
             "-map",
             "2:a:0",
+            "-r",
+            str(pip_fps),
             *encode_args,
         ]
 

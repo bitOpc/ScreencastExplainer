@@ -6,15 +6,15 @@
 
 ## 效果演示
 
-真实 Obsidian 录屏讲解（Transformer + Attention）。GIF 展示硬字幕与滚动；完整旁白见 YouTube。可选在右下角叠加本地 SadTalker 真人讲解画中画。
+GIF 预览（Obsidian · Prompt Engineering）：硬字幕、笔记滚动，以及可选的 SadTalker 真人讲解画中画（右下角）。更长旁白示例见 YouTube。
 
 <p align="center">
   <a href="https://youtu.be/Es6ZjRlRd_Q">
-    <img src="https://raw.githubusercontent.com/bitOpc/ScreencastExplainer/main/docs/assets/demo.gif" alt="演示预览 — Obsidian 录屏讲解（硬字幕与滚动）" width="720" />
+    <img src="https://raw.githubusercontent.com/bitOpc/ScreencastExplainer/main/docs/assets/demo.gif" alt="演示预览 — Obsidian 录屏讲解（硬字幕、滚动与真人讲解小窗）" width="720" />
   </a>
 </p>
 
-**完整版（约 10 分钟）：** [YouTube 观看](https://youtu.be/Es6ZjRlRd_Q)
+**完整版示例（约 10 分钟，Transformer + Attention）：** [YouTube 观看](https://youtu.be/Es6ZjRlRd_Q)
 
 ## 一句话安装
 

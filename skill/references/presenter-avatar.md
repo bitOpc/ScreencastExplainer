@@ -214,6 +214,7 @@ PYTHONPATH=<skill-root>/scripts \
 说明：
 
 - SadTalker **固定 25fps**，不要指望改 15fps 加速（会伤口型）
+- `compose_video.py` 叠加 avatar 时，输出帧率取 `max(25, 主画面有效帧率)`，避免低帧率录屏把口型抽稀成卡顿
 - **不要**默认开 `--enhancer gfpgan`（很慢）
 - `batch_size` 由 `build_avatar.py` 传给 `inference.py`；显存不足时改为 `2` 或改用 `quality`
 - 中景/全景**必须** `still=true`，否则易出现「头动身子不动」

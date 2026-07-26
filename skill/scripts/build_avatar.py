@@ -16,6 +16,7 @@ from lib.presenter_config import (
     load_presenter_config,
     resolve_sadtalker_settings,
 )
+from lib.run_state import load_segments
 
 
 def load_run_avatar(paths: RunPaths) -> dict[str, Any]:
@@ -27,7 +28,14 @@ def load_run_avatar(paths: RunPaths) -> dict[str, Any]:
 
 def list_narration_clips(paths: RunPaths) -> list[Path]:
     """返回按编号排序的 Edge TTS WAV 片段。"""
-    return sorted((paths.work_audio_dir / "edge_clips").glob("clip_*.wav"))
+    clips = sorted((paths.work_audio_dir / "edge_clips").glob("clip_*.wav"))
+    try:
+        segment_count = len(load_segments(paths).get("segments", []))
+    except Exception:
+        segment_count = 0
+    if segment_count > 0:
+        return clips[:segment_count]
+    return clips
 
 
 def run_sadtalker_segment(
@@ -46,6 +54,7 @@ def run_sadtalker_segment(
     """为单段音频生成无音轨 SadTalker 视频。"""
     result_dir = out_mp4.parent / f"{out_mp4.stem}_sadtalker_result"
     result_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint_dir = sadtalker_root / "checkpoints"
     command = [
         str(python),
         str(sadtalker_root / "inference.py"),
@@ -55,6 +64,8 @@ def run_sadtalker_segment(
         str(source_image),
         "--result_dir",
         str(result_dir),
+        "--checkpoint_dir",
+        str(checkpoint_dir),
         "--preprocess",
         preprocess,
         "--size",
@@ -66,7 +77,9 @@ def run_sadtalker_segment(
         command.append("--still")
     if cpu:
         command.append("--cpu")
-    subprocess.run(command, check=True)
+    # Upstream SadTalker resolves several assets from relative ./checkpoints and ./gfpgan paths.
+    # Run from the SadTalker repo root so local output directories do not break model resolution.
+    subprocess.run(command, check=True, cwd=sadtalker_root)
 
     candidates = list(result_dir.rglob("*.mp4"))
     if not candidates:
@@ -256,6 +269,10 @@ def build_avatar(
 
     for index, audio in enumerate(clips, start=1):
         out_mp4 = paths.video_dir / "avatar_segments" / f"clip_{index:03d}.mp4"
+        if out_mp4.is_file() and out_mp4.stat().st_size > 0:
+            clip_mp4s.append(out_mp4)
+            report_segments.append({"id": index, "status": "reused", "seconds": 0.0})
+            continue
         started_at = time.monotonic()
         try:
             run_sadtalker_segment(

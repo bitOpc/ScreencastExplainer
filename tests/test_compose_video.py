@@ -94,6 +94,9 @@ def test_build_mux_command_with_avatar(tmp_run_dir):
     cmd = build_mux_command(paths, crf=18, with_avatar=True)
     assert str(paths.avatar_mp4) in cmd
     assert cmd.count("-i") >= 3
+    # 伪视频探测失败时回退到 25fps，避免口型被低帧率主画面拖垮。
+    assert "fps=25" in cmd[cmd.index("-filter_complex") + 1]
+    assert cmd[cmd.index("-r") + 1] == "25"
 
 
 def test_build_mux_command_skips_avatar_when_disabled(tmp_run_dir):
