@@ -13,6 +13,7 @@ def test_run_paths_resolve(tmp_path: Path):
     assert paths.normalized_mp4 == run_dir / "video" / "normalized.mp4"
     assert paths.final_mp4 == run_dir / "video" / "final.mp4"
     assert paths.cover_png == run_dir / "video" / "cover.png"
+    assert paths.cover_json == run_dir / "cover.json"
     assert paths.cover_report_json == run_dir / "video" / "cover.report.json"
 
 

@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from lib.action_timeline import ActionEvent, ActionTimeline, TargetRef
 from timeline_player import play_timeline
 
@@ -60,6 +62,7 @@ def test_play_timeline_resolves_target_and_executes_by_absolute_time():
     assert [call[0] for call in client.calls] == ["press_key", "click"]
     assert client.calls[1][1]["x"] == 400
     assert client.calls[1][1]["y"] == 300
+    assert client.calls[0][1]["window_id"] == 22
     assert report["events_executed"] == 2
 
 
@@ -92,3 +95,28 @@ def test_cli_report_is_json_serializable():
     report = play_timeline(timeline, client=FakeClient(), dry_run=True)
 
     json.dumps(report, ensure_ascii=False)
+
+
+def test_cua_driver_refused_raises():
+    from timeline_player import CuaDriverCliClient, _ensure_driver_accepted
+
+    with pytest.raises(RuntimeError, match="ambiguous_window_target"):
+        _ensure_driver_accepted(
+            "press_key",
+            {"effect": "refused", "code": "ambiguous_window_target"},
+        )
+
+    class RefusingClient(FakeClient):
+        def call(self, tool, args):
+            return {"effect": "refused", "code": "ambiguous_window_target"}
+
+    timeline = ActionTimeline(
+        version=1,
+        targets={"default": TargetRef(app_name="Keynote")},
+        events=[
+            ActionEvent(at=0, action="key", target="default", payload={"key": "PageDown"}),
+        ],
+    )
+
+    with pytest.raises(RuntimeError, match="ambiguous_window_target"):
+        play_timeline(timeline, client=RefusingClient())

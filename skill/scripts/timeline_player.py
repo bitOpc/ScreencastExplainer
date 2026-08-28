@@ -75,6 +75,16 @@ class CuaDriverCliClient:
         return {"ok": True, "result": data}
 
 
+def _ensure_driver_accepted(tool: str, result: dict[str, Any]) -> None:
+    """cua-driver 可能 exit 0 但 effect=refused（如 ambiguous_window_target）。"""
+    if result.get("effect") != "refused":
+        return
+    code = result.get("code", "unknown")
+    raise RuntimeError(
+        f"cua-driver {tool} 被拒绝（{code}）: {json.dumps(result, ensure_ascii=False)}"
+    )
+
+
 def play_timeline(
     timeline: ActionTimeline,
     *,
@@ -116,7 +126,9 @@ def play_timeline(
             if seconds > 0:
                 clock.sleep(seconds)
         else:
-            client.call(call.tool, call.args)
+            result = client.call(call.tool, call.args)
+            if isinstance(result, dict):
+                _ensure_driver_accepted(call.tool, result)
             executed += 1
 
     return {
@@ -181,7 +193,7 @@ def main() -> None:
     parser.add_argument("--driver-cmd", default="cua-driver", help="cua-driver 命令路径")
     parser.add_argument("--dry-run", action="store_true", help="只解析和规划，不执行动作")
     parser.add_argument(
-        "--allow-foreground",
+        "--allow-foreground", default=False,
         action="store_true",
         help="允许 foreground delivery_mode（默认禁止）",
     )

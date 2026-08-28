@@ -7,8 +7,8 @@ from pathlib import Path
 
 def ffmpeg_path() -> str:
     candidates = [
-        "/opt/homebrew/opt/ffmpeg-full/bin/ffmpeg",
         "/opt/homebrew/bin/ffmpeg",
+        "/opt/homebrew/opt/ffmpeg-full/bin/ffmpeg",
         "ffmpeg",
     ]
     for candidate in candidates:
@@ -19,8 +19,8 @@ def ffmpeg_path() -> str:
 
 def ffprobe_path() -> str:
     candidates = [
-        "/opt/homebrew/opt/ffmpeg-full/bin/ffprobe",
         "/opt/homebrew/bin/ffprobe",
+        "/opt/homebrew/opt/ffmpeg-full/bin/ffprobe",
         "ffprobe",
     ]
     for candidate in candidates:

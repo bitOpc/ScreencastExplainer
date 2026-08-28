@@ -167,10 +167,7 @@ def build_driver_call(
     if action == "wait":
         return DriverCall("wait", {"seconds": float(payload.get("seconds", 0.0))})
 
-    base = {
-        "pid": int(target_window["pid"]),
-        "delivery_mode": delivery_mode,
-    }
+    base = _base_driver_args(target_window, delivery_mode)
     window_id = target_window.get("window_id")
 
     if action == "key":
@@ -197,6 +194,18 @@ def build_driver_call(
     if action == "drag":
         return DriverCall("drag", {**base, **_drag_args(payload, target_window)})
     raise ValueError(f"不支持的 action: {action}")
+
+
+def _base_driver_args(target_window: dict[str, Any], delivery_mode: str) -> dict[str, Any]:
+    """构建 cua-driver 公共参数；多窗口同 pid 时必须带 window_id。"""
+    args: dict[str, Any] = {
+        "pid": int(target_window["pid"]),
+        "delivery_mode": delivery_mode,
+    }
+    window_id = target_window.get("window_id")
+    if window_id is not None:
+        args["window_id"] = int(window_id)
+    return args
 
 
 def _event_action_and_payload(event: ActionEvent | dict[str, Any]) -> tuple[str, dict[str, Any]]:

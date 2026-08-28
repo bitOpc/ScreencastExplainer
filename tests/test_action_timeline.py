@@ -95,11 +95,14 @@ def test_build_driver_call_maps_key_and_hotkey():
     assert key_call.tool == "press_key"
     assert key_call.args == {
         "pid": 123,
+        "window_id": 456,
         "key": "right",
         "delivery_mode": "background",
     }
     assert hotkey_call.tool == "hotkey"
     assert hotkey_call.args["keys"] == ["cmd", "l"]
+    assert hotkey_call.args["pid"] == 123
+    assert hotkey_call.args["window_id"] == 456
     assert hotkey_call.args["delivery_mode"] == "background"
 
 

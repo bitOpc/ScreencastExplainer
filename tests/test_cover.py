@@ -8,71 +8,90 @@ from PIL import Image
 
 from lib.cover import (
     CoverText,
-    infer_cover_text,
+    infer_frame_seconds,
     render_cover_image,
-    _subtitle_from_page_target,
+    resolve_cover_text,
 )
 from lib.paths import RunPaths
 
 
-def test_subtitle_from_page_target_strips_note_suffix():
-    assert _subtitle_from_page_target("Attention 笔记顶部标题区") == "Attention"
+def test_resolve_cover_text_requires_agent_or_cli_copy():
+    with pytest.raises(ValueError, match="cover.json"):
+        resolve_cover_text(
+            cover_data=None,
+            segments_data=None,
+            actions_data=None,
+            video_duration=120.0,
+        )
 
 
-def test_infer_cover_text_prefers_switch_segment():
-    segments_data = {
-        "segments": [
-            {
-                "id": 1,
-                "start": "00:00:00,000",
-                "page_target": "Transformer 笔记顶部",
-                "notes": "开场",
-            },
-            {
-                "id": 7,
-                "start": "00:05:18,088",
-                "page_target": "Attention 笔记顶部标题区",
-                "notes": "切换到 Attention 这篇",
-                "text": "现在把视角切到 Attention 这篇",
-            },
-        ]
-    }
-    actions_data = {
-        "events": [
-            {"at": 318.0, "action": "click"},
-        ]
-    }
-
-    cover = infer_cover_text(
-        run_data={"target_description": "Transformer 与 Attention 讲解"},
-        segments_data=segments_data,
-        script_text="# Demo\n## 01 — Transformer 定位\n",
-        actions_data=actions_data,
-        video_duration=600.0,
+def test_resolve_cover_text_from_agent_cover_json():
+    cover = resolve_cover_text(
+        cover_data={
+            "title": "Prompt Engineering",
+            "subtitle": "Prompt 是越长越好吗？",
+            "frame_seconds": 8,
+        },
+        segments_data=None,
+        actions_data=None,
+        video_duration=155.0,
+    )
+    assert cover == CoverText(
+        title="Prompt Engineering",
+        subtitle="Prompt 是越长越好吗？",
+        frame_seconds=8.0,
+        source="agent",
     )
 
-    assert cover.title == "Attention"
-    assert cover.subtitle == "机制深度解析"
-    assert cover.frame_seconds == pytest.approx(320.0, abs=0.01)
 
-
-def test_infer_cover_text_cli_override():
-    cover = infer_cover_text(
-        run_data=None,
+def test_resolve_cover_text_cli_override():
+    cover = resolve_cover_text(
+        cover_data={"title": "Ignored", "subtitle": "Ignored"},
         segments_data=None,
-        script_text=None,
         actions_data=None,
         video_duration=120.0,
         title_override="KV Cache",
         subtitle_override="机制深度解析",
         frame_seconds_override=42.0,
     )
-    assert cover == CoverText(
-        title="KV Cache",
-        subtitle="机制深度解析",
-        frame_seconds=42.0,
-        source="cli",
+    assert cover.title == "KV Cache"
+    assert cover.subtitle == "机制深度解析"
+    assert cover.frame_seconds == 42.0
+    assert cover.source == "cli"
+
+
+def test_infer_frame_seconds_prefers_switch_click():
+    frame = infer_frame_seconds(
+        segments_data={
+            "segments": [
+                {"id": 1, "start": "00:00:00,000", "notes": "开场"},
+                {
+                    "id": 7,
+                    "start": "00:05:18,088",
+                    "notes": "切换到 Attention 这篇",
+                    "text": "现在把视角切到 Attention",
+                },
+            ]
+        },
+        actions_data={"events": [{"at": 318.0, "action": "click"}]},
+        video_duration=600.0,
     )
+    assert frame == pytest.approx(320.0, abs=0.01)
+
+
+def test_infer_frame_seconds_defaults_to_opening():
+    frame = infer_frame_seconds(
+        segments_data={
+            "segments": [
+                {"id": 1, "start": "00:00:00,000", "notes": "开场"},
+                {"id": 10, "start": "00:02:17,154", "notes": "小结"},
+            ]
+        },
+        actions_data={"events": [{"at": 16.0, "action": "key", "key": "PageDown"}]},
+        video_duration=155.0,
+    )
+    assert frame == pytest.approx(7.75, abs=0.5)
+    assert frame < 30
 
 
 def test_render_cover_image_writes_png(tmp_path: Path):
@@ -101,21 +120,8 @@ def test_build_cover_end_to_end(tmp_run_dir, tmp_path: Path):
     video_path = paths.video_dir / "final.mp4"
     video_path.write_bytes(b"fake")
 
-    paths.script_md.write_text(
-        "# Demo\n## 07 — 切换到 Attention\n",
-        encoding="utf-8",
-    )
-    paths.segments_json.write_text(
-        """{
-  "segments": [
-    {"id": 1, "start": "00:00:00,000", "page_target": "Transformer 顶部"},
-    {"id": 2, "start": "00:05:00,000", "page_target": "Attention 机制讲解", "notes": "切换到 Attention"}
-  ]
-}""",
-        encoding="utf-8",
-    )
-    paths.run_json.write_text(
-        '{"target_description":"Attention 机制讲解"}',
+    paths.cover_json.write_text(
+        '{"title":"Attention","subtitle":"机制深度解析","frame_seconds":12}',
         encoding="utf-8",
     )
 
@@ -124,6 +130,7 @@ def test_build_cover_end_to_end(tmp_run_dir, tmp_path: Path):
 
     with patch("lib.cover.probe_duration", return_value=600.0):
         with patch("lib.cover.extract_video_frame") as extract:
+
             def _write_frame(**kwargs):
                 kwargs["output_path"].write_bytes(fake_frame.read_bytes())
 
@@ -131,20 +138,15 @@ def test_build_cover_end_to_end(tmp_run_dir, tmp_path: Path):
             output, cover_text = build_cover(
                 video_path=video_path,
                 output_path=paths.cover_png,
-                segments_data={
-                    "segments": [
-                        {
-                            "id": 2,
-                            "start": "00:05:00,000",
-                            "page_target": "Attention 机制讲解",
-                            "notes": "切换到 Attention",
-                        }
-                    ]
+                cover_data={
+                    "title": "Attention",
+                    "subtitle": "机制深度解析",
+                    "frame_seconds": 12,
                 },
-                script_text=paths.script_md.read_text(encoding="utf-8"),
             )
 
     assert output == paths.cover_png
     assert cover_text.title == "Attention"
+    assert cover_text.subtitle == "机制深度解析"
     assert paths.cover_png.is_file()
     assert _pick_video_path(paths, None) == video_path

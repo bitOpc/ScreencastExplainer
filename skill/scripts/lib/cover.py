@@ -1,4 +1,8 @@
-"""根据成片内容与运行元数据生成 YouTube 风格封面图。"""
+"""根据 Agent 提供的文案与成片帧生成 YouTube 风格封面图。
+
+标题 / 副标题钩子由跑 Skill 的 LLM Agent 写入 ``cover.json``（或 CLI 覆盖）；
+本模块只负责：解析契约、推断取帧时间、渲染。不内置话题钩子硬编码。
+"""
 
 from __future__ import annotations
 
@@ -24,41 +28,21 @@ SUBTITLE_STROKE = (0, 0, 0)
 TITLE_SHADOW = (0, 0, 0, 170)
 SUBTITLE_SHADOW = (0, 0, 0, 210)
 
-TITLE_FONT_PATH = "/System/Library/Fonts/Supplemental/Times New Roman Bold Italic.ttf"
-TITLE_FONT_FALLBACK = "/System/Library/Fonts/Supplemental/Times New Roman Bold.ttf"
-SUBTITLE_FONT_PATH = "/System/Library/Fonts/STHeiti Medium.ttc"
-SUBTITLE_FONT_INDEX = 0
+# 默认字体仅为渲染回退；可通过 cover.json / CLI 覆盖。
+DEFAULT_TITLE_FONT = "/System/Library/Fonts/Supplemental/Times New Roman Bold Italic.ttf"
+DEFAULT_TITLE_FONT_FALLBACK = "/System/Library/Fonts/Supplemental/Times New Roman Bold.ttf"
+DEFAULT_SUBTITLE_FONT = "/System/Library/Fonts/STHeiti Medium.ttc"
+DEFAULT_SUBTITLE_FONT_INDEX = 0
 TITLE_MAX_WIDTH_RATIO = 0.72
 SUBTITLE_MAX_WIDTH_RATIO = 0.94
 
 _FONT_CANDIDATES = [
-    SUBTITLE_FONT_PATH,
+    DEFAULT_SUBTITLE_FONT,
     "/System/Library/Fonts/Hiragino Sans GB.ttc",
     "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
 ]
 
-_ENGLISH_TOPIC_RE = re.compile(
-    r"`([A-Za-z][A-Za-z0-9 _-]{1,40})`|"
-    r"\b(Transformer|Attention|KV Cache|RAG|Agent|LLM|GPT|Claude|Gemini|Obsidian)\b"
-)
-_SECTION_RE = re.compile(r"^##\s+\d+\s*[—-]\s*(.+)$", re.MULTILINE)
 _SWITCH_HINT_RE = re.compile(r"切换|切到|视角切")
-_AFTER_SWITCH_TOPIC_RE = re.compile(
-    r"切换到[^A-Za-z`]*`?([A-Za-z][A-Za-z0-9 _-]{1,30})`?|"
-    r"切到[^A-Za-z`]*`?([A-Za-z][A-Za-z0-9 _-]{1,30})`?"
-)
-_TOPIC_SUBTITLE_HINTS = {
-    "attention": "机制深度解析",
-    "transformer": "架构深度解析",
-    "kv cache": "原理深度解析",
-}
-
-
-def _topic_subtitle(title: str, page_target: str) -> str:
-    key = title.casefold()
-    if key in _TOPIC_SUBTITLE_HINTS:
-        return _TOPIC_SUBTITLE_HINTS[key]
-    return _subtitle_from_page_target(page_target)
 
 
 @dataclass(frozen=True)
@@ -67,52 +51,13 @@ class CoverText:
     subtitle: str
     frame_seconds: float
     source: str
+    title_font: str | None = None
+    subtitle_font: str | None = None
+    subtitle_font_index: int = DEFAULT_SUBTITLE_FONT_INDEX
 
 
 def _load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
-
-
-def _unique_preserve(items: list[str]) -> list[str]:
-    seen: set[str] = set()
-    out: list[str] = []
-    for item in items:
-        key = item.casefold()
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(item)
-    return out
-
-
-def _english_topics(*texts: str) -> list[str]:
-    found: list[str] = []
-    for text in texts:
-        for match in _ENGLISH_TOPIC_RE.finditer(text):
-            token = (match.group(1) or match.group(2)).strip()
-            if token and token not in {"Obsidian"}:
-                found.append(token)
-    return _unique_preserve(found)
-
-
-def _subtitle_from_page_target(page_target: str) -> str:
-    cleaned = page_target.strip()
-    cleaned = re.sub(r"笔记.*", "", cleaned).strip()
-    cleaned = re.sub(r"[：:].*", "", cleaned).strip()
-    if not cleaned:
-        return "深度解析"
-    if len(cleaned) <= 12:
-        return cleaned
-    return cleaned[:12]
-
-
-def _subtitle_from_section(section_title: str) -> str:
-    text = section_title.strip()
-    text = re.sub(r"`[^`]+`", "", text).strip()
-    text = re.sub(r"^(先看|继续|再往后|接着|然后|现在|最后)", "", text).strip()
-    if len(text) > 14:
-        text = text[:14]
-    return text or "深度解析"
 
 
 def _segment_start_seconds(segment: dict[str, Any]) -> float:
@@ -132,93 +77,118 @@ def _click_times(actions: dict[str, Any]) -> list[float]:
     ]
 
 
-def infer_cover_text(
+def infer_frame_seconds(
     *,
-    run_data: dict[str, Any] | None,
     segments_data: dict[str, Any] | None,
-    script_text: str | None,
+    actions_data: dict[str, Any] | None,
+    video_duration: float,
+) -> float:
+    """机械推断取帧时间：多主题切换点优先，否则开场。不决定文案。"""
+    segments = (segments_data or {}).get("segments", [])
+    click_times = _click_times(actions_data or {})
+
+    switch_index: int | None = None
+    for index, segment in enumerate(segments):
+        blob = " ".join(
+            str(segment.get(key, "")) for key in ("notes", "text", "page_target")
+        )
+        if _SWITCH_HINT_RE.search(blob):
+            switch_index = index
+            break
+
+    if click_times and switch_index is not None:
+        frame_seconds = click_times[min(switch_index, len(click_times) - 1)] + 2.0
+    elif segments:
+        opening = _segment_start_seconds(segments[0])
+        frame_seconds = opening + min(8.0, max(3.0, video_duration * 0.05))
+    else:
+        frame_seconds = max(1.0, min(video_duration * 0.08, 12.0))
+
+    return min(max(0.5, frame_seconds), max(0.5, video_duration - 0.5))
+
+
+def resolve_cover_text(
+    *,
+    cover_data: dict[str, Any] | None,
+    segments_data: dict[str, Any] | None,
     actions_data: dict[str, Any] | None,
     video_duration: float,
     title_override: str | None = None,
     subtitle_override: str | None = None,
     frame_seconds_override: float | None = None,
 ) -> CoverText:
-    """从运行产物推断封面标题、副标题与取帧时间。"""
-    if title_override and subtitle_override and frame_seconds_override is not None:
-        return CoverText(
-            title=title_override,
-            subtitle=subtitle_override,
-            frame_seconds=frame_seconds_override,
-            source="cli",
+    """合并 CLI / Agent ``cover.json`` 与机械取帧。
+
+    标题与副标题必须由 Agent（cover.json）或 CLI 提供；脚本不编造钩子话术。
+    """
+    agent = cover_data or {}
+    title = (title_override or str(agent.get("title") or "")).strip()
+    subtitle = (subtitle_override or str(agent.get("subtitle") or "")).strip()
+
+    if not title or not subtitle:
+        raise ValueError(
+            "缺少封面标题或副标题。请先由 Agent 根据 script.md / segments.json "
+            "写入 cover.json（字段 title、subtitle），或通过 "
+            "--title / --subtitle 传入。参见 skill/references/cover.md。"
         )
 
-    segments = (segments_data or {}).get("segments", [])
-    target_description = (run_data or {}).get("target_description", "")
-    script_text = script_text or ""
-
-    section_titles = [_subtitle_from_section(m.group(1)) for m in _SECTION_RE.finditer(script_text)]
-    topics = _english_topics(target_description, script_text, *(s.get("page_target", "") for s in segments))
-
-    chosen_segment = segments[-1] if segments else None
-    switch_index: int | None = None
-    click_times = _click_times(actions_data or {})
-    for index, segment in enumerate(segments):
-        notes = str(segment.get("notes", ""))
-        text = str(segment.get("text", ""))
-        page_target = str(segment.get("page_target", ""))
-        if _SWITCH_HINT_RE.search(notes) or _SWITCH_HINT_RE.search(text) or _SWITCH_HINT_RE.search(page_target):
-            switch_index = index
-            chosen_segment = segment
-            break
-
-    if switch_index is not None and switch_index + 1 < len(segments):
-        chosen_segment = segments[switch_index + 1]
-
-    title = title_override or (topics[-1] if topics else "Screencast")
-    if chosen_segment and not title_override:
-        page_target = str(chosen_segment.get("page_target", ""))
-        page_topics = _english_topics(page_target)
-        if page_topics:
-            title = page_topics[0]
-        elif switch_index is not None:
-            prior = segments[switch_index]
-            for source in (
-                str(prior.get("page_target", "")),
-                str(prior.get("text", "")),
-                str(prior.get("notes", "")),
-            ):
-                match = _AFTER_SWITCH_TOPIC_RE.search(source)
-                if match:
-                    title = (match.group(1) or match.group(2)).strip()
-                    break
-
-    subtitle = subtitle_override
-    if not subtitle and chosen_segment:
-        subtitle = _topic_subtitle(title, str(chosen_segment.get("page_target", "")))
-    if not subtitle and section_titles:
-        subtitle = section_titles[min(len(section_titles) - 1, max(0, len(section_titles) // 2))]
-    if not subtitle:
-        subtitle = _subtitle_from_page_target(target_description) if target_description else "深度解析"
+    if title_override and subtitle_override and frame_seconds_override is not None:
+        source = "cli"
+    elif title_override or subtitle_override or frame_seconds_override is not None:
+        source = "cli+agent" if agent.get("title") or agent.get("subtitle") else "cli"
+    else:
+        source = "agent"
 
     frame_seconds = frame_seconds_override
-    if frame_seconds is None and click_times and switch_index is not None:
-        frame_seconds = click_times[min(switch_index, len(click_times) - 1)] + 2.0
-    if frame_seconds is None and chosen_segment:
-        frame_seconds = _segment_start_seconds(chosen_segment) + 2.0
+    if frame_seconds is None and agent.get("frame_seconds") is not None:
+        frame_seconds = float(agent["frame_seconds"])
     if frame_seconds is None:
-        frame_seconds = max(1.0, video_duration * 0.4)
-    frame_seconds = min(max(0.5, frame_seconds), max(0.5, video_duration - 0.5))
+        frame_seconds = infer_frame_seconds(
+            segments_data=segments_data,
+            actions_data=actions_data,
+            video_duration=video_duration,
+        )
+    frame_seconds = min(max(0.5, float(frame_seconds)), max(0.5, video_duration - 0.5))
+
+    title_font = agent.get("title_font")
+    subtitle_font = agent.get("subtitle_font")
+    subtitle_font_index = int(
+        agent.get("subtitle_font_index", DEFAULT_SUBTITLE_FONT_INDEX)
+    )
 
     return CoverText(
         title=title,
         subtitle=subtitle,
         frame_seconds=frame_seconds,
-        source="inferred",
+        source=source,
+        title_font=str(title_font) if title_font else None,
+        subtitle_font=str(subtitle_font) if subtitle_font else None,
+        subtitle_font_index=subtitle_font_index,
     )
 
 
-def _resolve_font(size: int, *, path: str | None = None, index: int = 0) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    candidates = [path] if path else _FONT_CANDIDATES
+# 兼容旧测试名
+def infer_cover_text(**kwargs: Any) -> CoverText:
+    """已弃用：请改用 resolve_cover_text。保留包装以兼容旧调用。"""
+    return resolve_cover_text(
+        cover_data=kwargs.get("cover_data"),
+        segments_data=kwargs.get("segments_data"),
+        actions_data=kwargs.get("actions_data"),
+        video_duration=kwargs["video_duration"],
+        title_override=kwargs.get("title_override"),
+        subtitle_override=kwargs.get("subtitle_override"),
+        frame_seconds_override=kwargs.get("frame_seconds_override"),
+    )
+
+
+def _resolve_font(
+    size: int, *, path: str | None = None, index: int = 0
+) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    candidates: list[str | None]
+    if path:
+        candidates = [path, *_FONT_CANDIDATES]
+    else:
+        candidates = list(_FONT_CANDIDATES)
     for font_path in candidates:
         if font_path and Path(font_path).exists():
             try:
@@ -235,7 +205,7 @@ def _fit_font(
     draw: ImageDraw.ImageDraw,
     text: str,
     *,
-    path: str,
+    path: str | None,
     max_width: int,
     start_size: int,
     min_size: int,
@@ -249,12 +219,20 @@ def _fit_font(
     return _resolve_font(min_size, path=path, index=index)
 
 
-def _text_size(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont) -> tuple[int, int]:
+def _text_size(
+    draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont
+) -> tuple[int, int]:
     bbox = draw.textbbox((0, 0), text, font=font)
     return bbox[2] - bbox[0], bbox[3] - bbox[1]
 
 
-def _draw_title(draw: ImageDraw.ImageDraw, center_x: float, y: float, text: str, font: ImageFont.ImageFont) -> int:
+def _draw_title(
+    draw: ImageDraw.ImageDraw,
+    center_x: float,
+    y: float,
+    text: str,
+    font: ImageFont.ImageFont,
+) -> int:
     width, height = _text_size(draw, text, font)
     x = center_x - width / 2
     for offset in ((5, 5), (3, 3)):
@@ -275,7 +253,13 @@ def _draw_title(draw: ImageDraw.ImageDraw, center_x: float, y: float, text: str,
     return height
 
 
-def _draw_subtitle(draw: ImageDraw.ImageDraw, center_x: float, y: float, text: str, font: ImageFont.ImageFont) -> int:
+def _draw_subtitle(
+    draw: ImageDraw.ImageDraw,
+    center_x: float,
+    y: float,
+    text: str,
+    font: ImageFont.ImageFont,
+) -> int:
     width, height = _text_size(draw, text, font)
     x = center_x - width / 2
     for offset in ((6, 8), (4, 6), (2, 4)):
@@ -336,12 +320,23 @@ def _fit_cover_frame(image: Image.Image) -> Image.Image:
     return image.resize((COVER_WIDTH, COVER_HEIGHT), Image.Resampling.LANCZOS)
 
 
+def _default_title_font_path() -> str:
+    if Path(DEFAULT_TITLE_FONT).exists():
+        return DEFAULT_TITLE_FONT
+    if Path(DEFAULT_TITLE_FONT_FALLBACK).exists():
+        return DEFAULT_TITLE_FONT_FALLBACK
+    return _FONT_CANDIDATES[0]
+
+
 def render_cover_image(
     *,
     frame_path: Path,
     title: str,
     subtitle: str,
     output_path: Path,
+    title_font: str | None = None,
+    subtitle_font: str | None = None,
+    subtitle_font_index: int = DEFAULT_SUBTITLE_FONT_INDEX,
 ) -> Path:
     """将视频帧渲染为带暗色遮罩与标题文字的封面图。"""
     base = _fit_cover_frame(Image.open(frame_path).convert("RGB"))
@@ -350,14 +345,14 @@ def render_cover_image(
     draw = ImageDraw.Draw(composed)
 
     center_x = COVER_WIDTH / 2
-    title_font_path = (
-        TITLE_FONT_PATH
-        if Path(TITLE_FONT_PATH).exists()
-        else TITLE_FONT_FALLBACK
-        if Path(TITLE_FONT_FALLBACK).exists()
+    title_font_path = title_font or _default_title_font_path()
+    subtitle_font_path = subtitle_font or (
+        DEFAULT_SUBTITLE_FONT
+        if Path(DEFAULT_SUBTITLE_FONT).exists()
         else _FONT_CANDIDATES[0]
     )
-    title_font = _fit_font(
+
+    fitted_title = _fit_font(
         draw,
         title,
         path=title_font_path,
@@ -365,24 +360,24 @@ def render_cover_image(
         start_size=92,
         min_size=60,
     )
-    subtitle_font = _fit_font(
+    fitted_subtitle = _fit_font(
         draw,
         subtitle,
-        path=SUBTITLE_FONT_PATH if Path(SUBTITLE_FONT_PATH).exists() else _FONT_CANDIDATES[0],
+        path=subtitle_font_path,
         max_width=int(COVER_WIDTH * SUBTITLE_MAX_WIDTH_RATIO),
         start_size=122,
         min_size=72,
-        index=SUBTITLE_FONT_INDEX,
+        index=subtitle_font_index,
     )
 
     gap = 28
-    _, subtitle_h = _text_size(draw, subtitle, subtitle_font)
-    _, title_h = _text_size(draw, title, title_font)
+    _, title_h = _text_size(draw, title, fitted_title)
+    _, subtitle_h = _text_size(draw, subtitle, fitted_subtitle)
     block_h = title_h + gap + subtitle_h
     y = (COVER_HEIGHT - block_h) / 2 - 12
 
-    title_h = _draw_title(draw, center_x, y, title, title_font)
-    _draw_subtitle(draw, center_x, y + title_h + gap, subtitle, subtitle_font)
+    title_h = _draw_title(draw, center_x, y, title, fitted_title)
+    _draw_subtitle(draw, center_x, y + title_h + gap, subtitle, fitted_subtitle)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     composed.convert("RGB").save(output_path, format="PNG", optimize=True)
@@ -393,6 +388,7 @@ def build_cover(
     *,
     video_path: Path,
     output_path: Path,
+    cover_data: dict[str, Any] | None = None,
     run_data: dict[str, Any] | None = None,
     segments_data: dict[str, Any] | None = None,
     script_text: str | None = None,
@@ -401,15 +397,15 @@ def build_cover(
     subtitle: str | None = None,
     frame_seconds: float | None = None,
 ) -> tuple[Path, CoverText]:
-    """生成封面图并返回输出路径与推断元数据。"""
+    """生成封面图并返回输出路径与文案元数据。"""
+    del run_data, script_text  # 文案由 Agent cover.json / CLI 提供，不再脚本推断
     if not video_path.is_file():
         raise FileNotFoundError(f"未找到视频文件: {video_path}")
 
     duration = probe_duration(video_path)
-    cover_text = infer_cover_text(
-        run_data=run_data,
+    cover_text = resolve_cover_text(
+        cover_data=cover_data,
         segments_data=segments_data,
-        script_text=script_text,
         actions_data=actions_data,
         video_duration=duration,
         title_override=title,
@@ -429,17 +425,21 @@ def build_cover(
             title=cover_text.title,
             subtitle=cover_text.subtitle,
             output_path=output_path,
+            title_font=cover_text.title_font,
+            subtitle_font=cover_text.subtitle_font,
+            subtitle_font_index=cover_text.subtitle_font_index,
         )
     return output_path, cover_text
 
 
 def load_run_context(paths_root: Path) -> dict[str, Any]:
-    """读取运行目录中的封面推断上下文。"""
+    """读取运行目录中的封面渲染上下文。"""
     context: dict[str, Any] = {}
     run_json = paths_root / "run.json"
     segments_json = paths_root / "segments.json"
     script_md = paths_root / "script.md"
     actions_json = paths_root / "actions.json"
+    cover_json = paths_root / "cover.json"
 
     if run_json.is_file():
         context["run_data"] = _load_json(run_json)
@@ -449,4 +449,6 @@ def load_run_context(paths_root: Path) -> dict[str, Any]:
         context["script_text"] = script_md.read_text(encoding="utf-8")
     if actions_json.is_file():
         context["actions_data"] = _load_json(actions_json)
+    if cover_json.is_file():
+        context["cover_data"] = _load_json(cover_json)
     return context

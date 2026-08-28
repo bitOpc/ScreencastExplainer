@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""根据成片内容与运行元数据生成视频封面。"""
+"""根据成片与 Agent 提供的 cover.json 生成视频封面。"""
 
 from __future__ import annotations
 
@@ -56,15 +56,17 @@ def _pick_video_path(paths: RunPaths, explicit: Path | None) -> Path:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="生成 YouTube 风格视频封面")
+    parser = argparse.ArgumentParser(
+        description="生成 YouTube 风格视频封面（文案来自 Agent cover.json 或 CLI）"
+    )
     parser.add_argument("--output-dir", type=Path, required=True, help="运行输出目录")
     parser.add_argument("--video", type=Path, help="取帧视频（默认优先 final.mp4）")
-    parser.add_argument("--title", help="封面主标题（默认从内容推断）")
-    parser.add_argument("--subtitle", help="封面副标题（默认从内容推断）")
+    parser.add_argument("--title", help="封面主标题（覆盖 cover.json）")
+    parser.add_argument("--subtitle", help="封面副标题钩子（覆盖 cover.json）")
     parser.add_argument(
         "--frame-seconds",
         type=float,
-        help="取帧时间点（秒，默认根据分段/切换动作推断）",
+        help="取帧时间点（秒；默认读 cover.json 或机械开场/切换推断）",
     )
     parser.add_argument(
         "--output",
@@ -78,14 +80,17 @@ def main() -> None:
     output_path = (args.output or paths.cover_png).resolve()
 
     context = load_run_context(paths.root)
-    output, cover_text = build_cover(
-        video_path=video_path,
-        output_path=output_path,
-        title=args.title,
-        subtitle=args.subtitle,
-        frame_seconds=args.frame_seconds,
-        **context,
-    )
+    try:
+        output, cover_text = build_cover(
+            video_path=video_path,
+            output_path=output_path,
+            title=args.title,
+            subtitle=args.subtitle,
+            frame_seconds=args.frame_seconds,
+            **context,
+        )
+    except ValueError as exc:
+        raise SystemExit(f"错误: {exc}") from exc
 
     report = {
         "cover_png": str(output),
@@ -97,7 +102,9 @@ def main() -> None:
     }
     report_path = paths.cover_report_json
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    report_path.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
     if paths.run_json.is_file():
         run_data = load_run(paths)

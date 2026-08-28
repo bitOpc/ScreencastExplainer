@@ -161,6 +161,8 @@ doctor → init_run
 → [Agent: 校准 UI 动作并写 actions.json]
 → [run_recording.py: record_window.py 单窗口录屏 + timeline_player.py 直连 cua-driver 回放 UI → capture/raw.mp4]
 → ingest_capture → compose_video
+→ [Agent: 读 script/segments 写 cover.json 标题+钩子副标题]
+→ build_cover
 → 交付
 ```
 
@@ -423,7 +425,8 @@ python3 <skill-root>/scripts/build_cover.py \
 
 - `ingest_capture.py`：校验 `capture/raw.mp4` 与 `narration.wav` 时长（容差 ±0.5s），标准化为 `video/normalized.mp4`
 - `compose_video.py`：混合旁白 + 硬字幕（+ 可选 avatar 画中画）→ `video/final.mp4`
-- `build_cover.py`：从成片帧 + 运行元数据生成 `video/cover.png`（暗色遮罩 + 中英文标题，风格参考 YouTube 封面）
+- **封面文案**：Agent 必须先根据 `script.md` / `segments.json` 写出 `$RUN/cover.json`（`title` + 钩子 `subtitle`），再跑 `build_cover.py`。规则见 [cover.md](references/cover.md)。**禁止**依赖脚本硬编码钩子。
+- `build_cover.py`：按 `cover.json`（或 `--title` / `--subtitle`）取帧渲染 `video/cover.png`；缺文案则报错退出。
 
 若 `ingest_capture.py` 报告音视频时长不匹配 → 见 [failure-modes.md](references/failure-modes.md) 模式 4。
 
@@ -438,7 +441,7 @@ python3 <skill-root>/scripts/build_cover.py \
 - 字幕路径（`captions.srt` / `captions.ass`）
 - 成片路径（`video/final.mp4`）
 - 若启用真人讲解：`video/avatar.mp4`、`video/avatar.report.json`
-- 封面路径（`video/cover.png`）
+- 封面文案（`cover.json`）与封面图（`video/cover.png`）
 - 时长
 - 实际使用声音
 
@@ -479,6 +482,7 @@ outputs/<run-id>/
 ├── captions.ass
 ├── avatar.json                 # 可选：本片真人讲解确认（含 framing_mode）
 ├── avatar_framing/             # 可选：head/medium/full 预览与 chosen.png
+├── cover.json                  # Agent：封面标题 + 钩子副标题（build_cover 前必写）
 ├── capture/
 │   └── raw.mp4
 └── video/

@@ -17,11 +17,12 @@ Screencast Explainer 采用 **Computer Use 校准 + cua-driver 本地动作回�
        ▼
 ┌─────────────┐   build_narration.py
 │ skill/      │   [可选 build_avatar.py → video/avatar.mp4]
-│ scripts/    │  doctor → init → narrate → [avatar] → ingest → compose → cover
+│ scripts/    │  doctor → init → narrate → [avatar] → ingest → compose → [Agent: cover.json] → cover
 └─────────────┘
        │
        ▼
   video/final.mp4
+  cover.json          # Agent 写标题 + 钩子副标题
   video/cover.png
 ```
 
@@ -29,10 +30,10 @@ Screencast Explainer 采用 **Computer Use 校准 + cua-driver 本地动作回�
 
 | 角色 | 负责 | 不负责 |
 |------|------|--------|
-| **Agent（Computer Use）** | 打开 App、校准 UI 动作、写 `actions.json`；获取 `window_id` | 录屏期间逐步推进 UI、ffmpeg 命令构造 |
+| **Agent（Computer Use）** | 打开 App、校准 UI 动作、写 `actions.json`；获取 `window_id`；写 `cover.json` 标题/钩子 | 录屏期间逐步推进 UI、ffmpeg 命令构造、硬编码封面钩子 |
 | **`timeline_player.py`** | 按 `actions.json` 直连 cua-driver 回放 `key` / `click` / `scroll` / `drag` 等动作 | 理解 UI、决定讲解内容 |
 | **`record_window.py`** | 对单个窗口做真实连续录屏 → `capture/raw.mp4` | UI 点击/滚动 |
-| **其余 Python 脚本** | 依赖检查、配音、字幕、采集校验、合成 | UI 操作与窗口选取 |
+| **其余 Python 脚本** | 依赖检查、配音、字幕、采集校验、合成、按 `cover.json` 渲染封面 | UI 操作与窗口选取；编造封面文案 |
 | **SKILL.md** | 强制工作流 0→9、失败模式、交付格式 | 可执行逻辑 |
 
 ## 各层详细职责
@@ -115,9 +116,13 @@ python3 <skill-root>/scripts/ingest_capture.py \
 python3 <skill-root>/scripts/compose_video.py \
   --output-dir ./outputs/<run-id>
   # 或 --with-avatar / --no-avatar
+
+# Agent 先写 cover.json（title + 钩子 subtitle），再渲染封面
+python3 <skill-root>/scripts/build_cover.py \
+  --output-dir ./outputs/<run-id>
 ```
 
-更多录屏细节见 [recording-window.md](recording-window.md)，动作时间轴见 [action-timeline.md](action-timeline.md)。
+更多录屏细节见 [recording-window.md](recording-window.md)，动作时间轴见 [action-timeline.md](action-timeline.md)，封面文案见 [cover.md](cover.md)。
 
 ## 状态流转
 
